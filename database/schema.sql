@@ -13,7 +13,8 @@ CREATE TABLE IF NOT EXISTS users (
   created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
   updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
   PRIMARY KEY (id),
-  UNIQUE KEY users_email_key (email)
+  UNIQUE KEY users_email_key (email),
+  KEY users_is_active_idx (is_active)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS roles (
@@ -40,6 +41,8 @@ CREATE TABLE IF NOT EXISTS user_roles (
   user_id VARCHAR(191) NOT NULL,
   role_id VARCHAR(191) NOT NULL,
   PRIMARY KEY (user_id, role_id),
+  KEY user_roles_user_id_idx (user_id),
+  KEY user_roles_role_id_idx (role_id),
   CONSTRAINT user_roles_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT user_roles_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -48,6 +51,8 @@ CREATE TABLE IF NOT EXISTS role_permissions (
   role_id VARCHAR(191) NOT NULL,
   permission_id VARCHAR(191) NOT NULL,
   PRIMARY KEY (role_id, permission_id),
+  KEY role_permissions_role_id_idx (role_id),
+  KEY role_permissions_permission_id_idx (permission_id),
   CONSTRAINT role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT role_permissions_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -66,5 +71,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   PRIMARY KEY (id),
   KEY audit_logs_created_at_idx (created_at),
   KEY audit_logs_user_id_idx (user_id),
+  KEY audit_logs_action_idx (action),
   CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

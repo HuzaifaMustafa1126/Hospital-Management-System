@@ -27,13 +27,14 @@ npm install
 
 Copy `server/.env.example` to `server/.env`. Set a long `JWT_SECRET`, valid MySQL credentials, and the initial `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD`. Do not commit `.env`.
 
-With MySQL Server running, execute `database/schema.sql`, then `database/seed.sql` using your MySQL client. Create the initial Super Admin with:
+With MySQL Server running, initialize the database and create the initial Super Admin with:
 
 ```bash
+npm run db:init
 npm run db:seed
 ```
 
-The SQL seed has no password; the application seed hashes the supplied password with bcrypt.
+`db:init` safely creates the database, Phase 1 tables, roles, permissions, and their mappings. The application seed hashes the supplied password with bcrypt. Server startup also runs the safe initializer automatically.
 
 Run backend and frontend in separate terminals:
 

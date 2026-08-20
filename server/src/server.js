@@ -1,13 +1,16 @@
 import { app } from "./app.js";
 import { env } from "./config/env.js";
 import { database } from "./db/database.js";
+import { initializeDatabase } from "./db/initialize.js";
 
 async function start() {
   try {
+    await initializeDatabase({ log: true });
+
     // Test MySQL connection before starting the API
     await database.query("SELECT 1");
 
-    console.log("MySQL database connected successfully.");
+    console.log("MySQL connected successfully.");
 
     const server = app.listen(env.PORT, () => {
       console.log(`API listening on http://localhost:${env.PORT}`);
@@ -45,7 +48,7 @@ async function start() {
       console.error("MySQL username or password is incorrect.");
     } else if (error?.code === "ER_BAD_DB_ERROR") {
       console.error(
-        `Database "${env.DB_NAME}" does not exist.`
+        "Hospital database does not exist and initialization could not create it."
       );
     } else {
       console.error(error);

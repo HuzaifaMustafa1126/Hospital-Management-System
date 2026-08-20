@@ -7,6 +7,7 @@
     "dev:client": "npm run dev --workspace=client",
     "build": "npm run build --workspace=server && npm run build --workspace=client",
     "lint": "npm run lint --workspace=server && npm run lint --workspace=client",
+    "db:init": "npm run db:init --workspace=server",
     "db:seed": "npm run db:seed --workspace=server"
   }
 }

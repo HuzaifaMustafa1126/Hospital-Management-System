@@ -3,7 +3,8 @@ import { database } from '../db/database.js';
 
 const safeData = (data) => {
   if (!data) return null;
-  const { password, passwordHash, password_hash, token, ...safe } = data;
+  const safe = { ...data };
+  for (const key of ['password', 'passwordHash', 'password_hash', 'token']) delete safe[key];
   return safe;
 };
 
