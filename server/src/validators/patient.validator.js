@@ -8,4 +8,7 @@ export const patientSchema = z.object({
   paymentMethod: z.enum(['CASH', 'CARD', 'BANK_TRANSFER', 'OTHER']),
 });
 export const patientUpdateSchema = patientSchema.omit({ paymentMethod: true }).partial().refine((value) => Object.keys(value).length > 0, 'At least one field is required');
-export const patientListSchema = z.object({ page: z.coerce.number().int().positive().default(1), limit: z.coerce.number().int().min(1).max(100).default(20), search: z.string().trim().max(191).optional() });
+const positiveInteger = (value) => typeof value === 'number' ? value : (/^\d+$/.test(String(value ?? '').trim()) ? Number.parseInt(value, 10) : NaN);
+const safePage = (value) => { const number = positiveInteger(value); return Number.isInteger(number) && number > 0 ? Math.min(number, 1000000) : 1; };
+const safeLimit = (value) => { const number = positiveInteger(value); return Number.isInteger(number) && number > 0 ? Math.min(number, 100) : 20; };
+export const patientListSchema = z.object({ page: z.preprocess(safePage, z.number().int()), limit: z.preprocess(safeLimit, z.number().int()), search: z.string().trim().max(191).optional() });

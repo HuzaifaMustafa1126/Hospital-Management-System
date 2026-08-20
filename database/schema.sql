@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS patients (
   address VARCHAR(500) NOT NULL, doctor_id BIGINT UNSIGNED NOT NULL, registration_locked BOOLEAN NOT NULL DEFAULT TRUE,
   is_active BOOLEAN NOT NULL DEFAULT TRUE, created_by VARCHAR(191) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, UNIQUE KEY uq_patients_patient_number (patient_number),
-  KEY idx_patients_cnic (cnic), KEY idx_patients_active_cnic (is_active, cnic), KEY idx_patients_doctor_id (doctor_id),
+  UNIQUE KEY uq_patients_cnic (cnic), UNIQUE KEY uq_patients_phone (phone), KEY idx_patients_active_cnic (is_active, cnic), KEY idx_patients_doctor_id (doctor_id),
   KEY idx_patients_created_by (created_by), CONSTRAINT patients_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES doctors(id),
   CONSTRAINT patients_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
