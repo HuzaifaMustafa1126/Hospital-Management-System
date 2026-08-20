@@ -1,0 +1,1 @@
+import { Navigate, Outlet } from 'react-router-dom'; import { useAuth } from '../context/AuthContext'; export function RoleProtectedRoute({ roles }) { const { user } = useAuth(); return user && roles.some((role) => user.roles.includes(role)) ? <Outlet /> : <Navigate to="/access-denied" replace />; }

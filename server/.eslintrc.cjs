@@ -1,0 +1,1 @@
+module.exports = { env: { node: true, es2022: true }, parserOptions: { sourceType: 'module' }, extends: ['eslint:recommended'], rules: { 'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }] }, ignorePatterns: ['dist'] };

@@ -1,0 +1,1 @@
+module.exports = { env: { browser: true, es2022: true }, parserOptions: { sourceType: 'module', ecmaFeatures: { jsx: true } }, extends: ['eslint:recommended', 'plugin:react-hooks/recommended'], rules: { 'no-unused-vars': 'off' }, settings: { react: { version: 'detect' } }, ignorePatterns: ['dist'] };

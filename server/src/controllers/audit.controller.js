@@ -1,0 +1,2 @@
+import { auditRepository } from '../repositories/audit.repository.js'; import { sanitizeAuditData } from '../utils/sanitize.js';
+export const auditController = { list: async (_req, res) => { const logs = await auditRepository.list(); res.json({ success: true, message: 'Audit logs retrieved', data: logs.map((log) => ({ ...log, oldData: sanitizeAuditData(log.oldData), newData: sanitizeAuditData(log.newData) })) }); } };

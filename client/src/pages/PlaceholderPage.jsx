@@ -1,0 +1,1 @@
+export function PlaceholderPage({ title, text }) { return <div className="rounded border border-dashed bg-white p-8"><h2 className="text-xl font-bold">{title}</h2><p className="mt-2">{text}</p></div>; }
