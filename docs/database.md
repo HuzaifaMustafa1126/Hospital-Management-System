@@ -6,4 +6,4 @@ Database name: `hospital_management`. A direct MySQL Server installation is the 
 
 Run `schema.sql`, then `seed.sql` with a MySQL client. Configure `server/.env`, then run `npm run db:seed --workspace=server`; that application seed creates the Super Admin only when its required environment credentials are present and hashes its password with bcrypt.
 
-Future changes should use ordered SQL files under `database/migrations/`. The application uses mysql2 connection pooling and parameterized queries; no ORM is used.
+The application uses mysql2 connection pooling and parameterized queries; no ORM is used. Future schema changes should be supplied as ordered SQL files in `database/`.

@@ -1,4 +1,34 @@
-import jwt from 'jsonwebtoken'; import { env } from '../config/env.js'; import { authService } from '../services/auth.service.js'; import { AppError } from '../utils/app-error.js'; import { asyncHandler } from '../utils/async-handler.js';
-export const authenticate = asyncHandler(async (req, _res, next) => { const token = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : null; if (!token) throw new AppError(401, 'Authentication required'); try { const { sub } = jwt.verify(token, env.JWT_SECRET); req.user = await authService.user(sub); next(); } catch { throw new AppError(401, 'Invalid or expired token'); } });
-export const requireRole = (...roles) => (req, _res, next) => !req.user || !roles.some((role) => req.user.roles.includes(role)) ? next(new AppError(403, 'You do not have permission to access this resource')) : next();
-export const requirePermission = (...permissions) => (req, _res, next) => !req.user || !permissions.every((permission) => req.user.permissions.includes(permission)) ? next(new AppError(403, 'You do not have the required permission')) : next();
+import { authService } from '../services/auth.service.js';
+import { AppError } from '../utils/app-error.js';
+import { asyncHandler } from '../utils/async-handler.js';
+import { verifyAccessToken } from '../utils/jwt.js';
+
+export const authenticate = asyncHandler(async (req, _res, next) => {
+  const token = req.headers.authorization?.startsWith('Bearer ')
+    ? req.headers.authorization.slice(7)
+    : null;
+  if (!token) throw new AppError(401, 'Authentication required');
+
+  try {
+    const { sub } = verifyAccessToken(token);
+    req.user = await authService.getAuthenticatedUser(sub);
+    next();
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    throw new AppError(401, 'Invalid or expired token');
+  }
+});
+
+export const requireRole = (...roles) => (req, _res, next) => {
+  if (!req.user || !roles.some((role) => req.user.roles.includes(role))) {
+    return next(new AppError(403, 'You do not have permission to access this resource'));
+  }
+  return next();
+};
+
+export const requirePermission = (...permissions) => (req, _res, next) => {
+  if (!req.user || !permissions.every((permission) => req.user.permissions.includes(permission))) {
+    return next(new AppError(403, 'You do not have the required permission'));
+  }
+  return next();
+};

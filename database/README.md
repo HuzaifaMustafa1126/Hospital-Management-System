@@ -18,4 +18,4 @@ The Express application uses `mysql2/promise` with a MySQL connection pool. It d
 
 Run `schema.sql` first, then `seed.sql`. Next, configure `server/.env` and run `npm run db:seed --workspace=server` to create the bcrypt-hashed Super Admin. The application seed requires `SUPER_ADMIN_EMAIL` and `SUPER_ADMIN_PASSWORD`; neither SQL file contains a password.
 
-Future schema changes belong in `migrations/` as ordered SQL files. Do not duplicate this initial schema in a migration.
+Future schema changes should be ordered SQL files under `database/`. Do not duplicate this initial schema.

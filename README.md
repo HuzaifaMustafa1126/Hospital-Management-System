@@ -12,7 +12,7 @@ Phase 1 foundation for a Hospital Management System. It provides JWT authenticat
 
 ```
 client/       React application
-docs/         architecture, database, and authentication notes
+docs/         architecture, database, and role/permission notes
 server/       Express API and MySQL access layer
 database/     schema, seed, and future SQL migrations
 ```
@@ -30,7 +30,7 @@ Copy `server/.env.example` to `server/.env`. Set a long `JWT_SECRET`, valid MySQ
 With MySQL Server running, execute `database/schema.sql`, then `database/seed.sql` using your MySQL client. Create the initial Super Admin with:
 
 ```bash
-npm run db:seed --workspace=server
+npm run db:seed
 ```
 
 The SQL seed has no password; the application seed hashes the supplied password with bcrypt.
@@ -53,7 +53,7 @@ npm run lint
 
 Endpoints are under `/api/v1`: login, logout, and current user are `/auth`; user management is `/users`; audit logs are `/audit-logs`. API responses use `{ success, message, data }` and errors use `{ success, message, errors }`.
 
-The initial roles are `SUPER_ADMIN`, `RECEPTION`, `LAB_ATTENDANT`, `SURGERY_STAFF`, `BLOOD_BANK_STAFF`, and `BILLING_STAFF`. Super Admin has every initial permission. Reception has only patient create, view, and search permissions; the patient module is reserved for the next phase.
+The initial roles are `SUPER_ADMIN`, `RECEPTION`, `LAB_ATTENDANT`, `SURGERY_STAFF`, `BLOOD_BANK_STAFF`, and `BILLING_STAFF`. Super Admin has every initial permission. Reception has only patient create, view, and search permissions; the patient module is reserved for the next phase. See `docs/roles-permissions.md` for the full matrix.
 
 ## Current and future phases
 

@@ -1,6 +1,6 @@
 # Authentication and authorization
 
-`POST /api/v1/auth/login` validates an active user's bcrypt password and returns a JWT, user, and role information. `GET /api/v1/auth/me` requires the JWT Bearer token. `POST /api/v1/auth/logout` records a logout audit event; JWT invalidation is not persisted in Phase 1.
+`POST /api/v1/auth/login` validates an active user's bcrypt password and returns a JWT, user, role, and permission information. `GET /api/v1/auth/me` requires the JWT Bearer token. `POST /api/v1/auth/logout` records a logout audit event; JWT invalidation is not persisted in Phase 1.
 
 The server enforces access with `authenticate`, `requireRole`, and `requirePermission` middleware. User management is restricted to `SUPER_ADMIN`; audit-log viewing requires `AUDIT_LOG_VIEW`.
 
