@@ -1,6 +1,6 @@
 # Hospital Management System
 
-Phase 1 foundation for a Hospital Management System, organized in the same client/server style as the MCQ Examination System. It provides JWT authentication, server-enforced roles and permissions, Super Admin user management, audit logs, a MySQL schema, login, and a dashboard foundation. Patient registration and other hospital modules are intentionally not implemented.
+Phase 1 foundation for a Hospital Management System. It provides JWT authentication, server-enforced roles and permissions, Super Admin user management, audit logs, a MySQL schema, login, and a dashboard foundation. Patient registration and other hospital modules are intentionally not implemented.
 
 ## Technology stack
 
