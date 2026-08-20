@@ -9,6 +9,10 @@ import { LoginPage } from './pages/LoginPage';
 import { PlaceholderPage } from './pages/PlaceholderPage';
 import { UserDetailPage } from './pages/UserDetailPage';
 import { UsersPage } from './pages/UsersPage';
+import { PatientRegistrationPage } from './pages/PatientRegistrationPage';
+import { PatientListPage } from './pages/PatientListPage';
+import { PatientDetailPage } from './pages/PatientDetailPage';
+import { DoctorsPage } from './pages/DoctorsPage';
 
 export function App() {
   return <BrowserRouter><Routes>
@@ -16,7 +20,11 @@ export function App() {
     <Route element={<ProtectedRoute />}><Route element={<AppLayout />}>
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route element={<PermissionProtectedRoute permissions={['PATIENT_VIEW']} />}>
-        <Route path="/patients" element={<PlaceholderPage title="Patient Registration" text="Patient registration will be implemented in the next phase." />} />
+        <Route path="/patients" element={<PatientListPage />} />
+        <Route path="/patients/:id" element={<PatientDetailPage />} />
+        <Route path="/reception/patients" element={<PatientListPage />} />
+        <Route path="/reception/patients/register" element={<PatientRegistrationPage />} />
+        <Route path="/reception/patients/search" element={<PatientListPage />} />
       </Route>
       <Route element={<RoleProtectedRoute roles={['SUPER_ADMIN']} />}>
         <Route path="/users" element={<UsersPage />} />
@@ -24,6 +32,9 @@ export function App() {
         <Route path="/users/:id" element={<UserDetailPage />} />
         <Route path="/users/:id/edit" element={<UserDetailPage />} />
         <Route path="/audit-logs" element={<AuditLogsPage />} />
+        <Route path="/admin/patients" element={<PatientListPage />} />
+        <Route path="/admin/patients/:id/edit" element={<PatientDetailPage edit />} />
+        <Route path="/admin/doctors" element={<DoctorsPage />} />
       </Route>
     </Route></Route>
     <Route path="/access-denied" element={<PlaceholderPage title="Access denied" text="You do not have permission to view this page." />} />

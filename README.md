@@ -1,6 +1,6 @@
 # Hospital Management System
 
-Phase 1 foundation for a Hospital Management System. It provides JWT authentication, server-enforced roles and permissions, Super Admin user management, audit logs, a MySQL schema, login, and a dashboard foundation. Patient registration and other hospital modules are intentionally not implemented.
+Phase 2 includes patient registration alongside the Phase 1 foundation. It provides JWT authentication, server-enforced roles and permissions, Super Admin user management, audit logs, doctor management, and locked patient registrations. Lab, surgery, blood bank, billing, and other hospital modules are intentionally not implemented.
 
 ## Technology stack
 

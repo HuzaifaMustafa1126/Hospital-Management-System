@@ -6,6 +6,8 @@ import { database } from './db/database.js';
 import { errorHandler, notFound } from './middleware/error.middleware.js';
 import { authRouter } from './routes/auth.routes.js';
 import { auditRouter } from './routes/audit.routes.js';
+import { doctorRouter } from './routes/doctor.routes.js';
+import { patientRouter } from './routes/patient.routes.js';
 import { userRouter } from './routes/user.routes.js';
 
 export const app = express();
@@ -26,5 +28,7 @@ app.get('/api/v1/health', async (_req, res, next) => {
 app.use('/api/v1/auth', authRouter);
 app.use('/api/v1/users', userRouter);
 app.use('/api/v1/audit-logs', auditRouter);
+app.use('/api/v1/doctors', doctorRouter);
+app.use('/api/v1/patients', patientRouter);
 app.use(notFound);
 app.use(errorHandler);

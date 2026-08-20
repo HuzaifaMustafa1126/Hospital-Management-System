@@ -19,3 +19,11 @@ SELECT r.id, p.id FROM roles r CROSS JOIN permissions p WHERE r.name = 'SUPER_AD
 
 INSERT IGNORE INTO role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM roles r JOIN permissions p ON p.name IN ('PATIENT_CREATE', 'PATIENT_VIEW', 'PATIENT_SEARCH') WHERE r.name = 'RECEPTION';
+
+-- Development doctors only. Patients are deliberately not seeded.
+INSERT INTO doctors (first_name, last_name, specialization, license_number) VALUES
+  ('Ahmed', 'Khan', 'General Medicine', 'DEV-DR-001'),
+  ('Ali', 'Raza', 'Cardiology', 'DEV-DR-002'),
+  ('Hassan', 'Malik', 'Surgery', 'DEV-DR-003'),
+  ('Usman', 'Tariq', 'Pathology', 'DEV-DR-004')
+ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), specialization = VALUES(specialization);
