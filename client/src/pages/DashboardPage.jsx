@@ -1,12 +1,12 @@
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { dashboardService } from '../services/dashboard.service';
 
 export function DashboardPage() {
-  const { user } = useAuth();
-  const admin = user?.roles.includes('SUPER_ADMIN');
-  return <><h2 className="text-2xl font-bold">{admin ? 'Administration dashboard' : 'Reception dashboard'}</h2>
-    <p className="mt-1 text-slate-600">Welcome back, {user?.firstName}.</p>
-    {admin ? <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {['Users', 'Roles', 'System status', 'Audit logs'].map((item) => <div key={item} className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><p className="font-semibold">{item}</p><p className="mt-2 text-sm text-slate-500">Phase 1 foundation</p></div>)}
-    </div> : <div className="mt-6 rounded-xl border border-sky-200 bg-sky-50 p-6"><h3 className="font-semibold">Patient Registration</h3><p className="mt-2 text-sm text-slate-600">Register new patients, then search and view their locked registrations.</p></div>}
-  </>;
+  const { user } = useAuth(); const admin = user?.roles.includes('SUPER_ADMIN'); const [data, setData] = useState(null); const [error, setError] = useState('');
+  useEffect(() => { dashboardService.summary().then((response) => setData(response.data.data)).catch((requestError) => setError(requestError.response?.data?.message || 'Unable to load dashboard data.')); }, []);
+  if (error) return <p className="rounded bg-red-50 p-3 text-red-700">{error}</p>; if (!data) return <p>Loading dashboard…</p>;
+  const stats = [['Total Patients', data.totalPatients], ["Today's Patients", data.todayPatients], ['Active Doctors', data.activeDoctors], ["Today's Services", data.todayServices], ["Today's Revenue", `PKR ${data.todayRevenue}`], ['Pending Payments', data.pendingPayments]];
+  return <><div><p className="text-sm text-sky-700">Dashboard</p><h2 className="text-2xl font-bold">{admin ? 'Hospital overview' : 'Reception overview'}</h2><p className="mt-1 text-slate-600">Welcome back, {user?.firstName}.</p></div><div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{stats.map(([label, value]) => <div key={label} className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><p className="text-sm text-slate-500">{label}</p><p className="mt-2 text-2xl font-bold text-slate-800">{value}</p></div>)}</div><section className="mt-6 rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200"><div className="flex items-center justify-between"><h3 className="text-lg font-bold">Recent Patients</h3><Link className="text-sm font-medium text-sky-700" to={admin ? '/admin/patients' : '/reception/patients'}>View all</Link></div>{data.recentPatients.length ? <div className="mt-4 overflow-x-auto"><table className="w-full text-left text-sm"><thead className="text-slate-500"><tr><th className="pb-2">Patient Number</th><th className="pb-2">Name</th><th className="pb-2">Doctor</th><th className="pb-2">Registered</th></tr></thead><tbody>{data.recentPatients.map((patient) => <tr className="border-t" key={patient.id}><td className="py-3 font-medium">{patient.patientNumber}</td><td>{patient.firstName} {patient.lastName}</td><td>{patient.doctorName}</td><td>{new Date(patient.createdAt).toLocaleString()}</td></tr>)}</tbody></table></div> : <p className="mt-4 rounded bg-slate-50 p-4 text-sm text-slate-500">No patients have been registered yet.</p>}</section></>;
 }

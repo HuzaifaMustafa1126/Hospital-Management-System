@@ -53,18 +53,18 @@ export const userService = {
     return user;
   },
 
-  async create({ firstName, lastName, email, phone, password, role }) {
+  async create({ firstName, lastName, email, phone, password, role, isActive }) {
     const normalizedEmail = email.toLowerCase();
     const [existing] = await database.execute('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
-    if (existing.length) throw new AppError(409, 'An account with this email already exists');
+    if (existing.length) throw new AppError(409, 'User already exists.');
 
     const connection = await database.getConnection();
     const id = randomUUID();
     try {
       await connection.beginTransaction();
       await connection.execute(
-        'INSERT INTO users (id, first_name, last_name, email, phone, password_hash) VALUES (?, ?, ?, ?, ?, ?)',
-        [id, firstName, lastName, normalizedEmail, phone || null, await bcrypt.hash(password, 12)],
+        'INSERT INTO users (id, first_name, last_name, email, phone, password_hash, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [id, firstName, lastName, normalizedEmail, phone || null, await bcrypt.hash(password, 12), isActive],
       );
       await connection.execute('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)', [id, await roleId(connection, role)]);
       await connection.commit();
@@ -114,4 +114,5 @@ export const userService = {
     await database.execute('UPDATE users SET is_active = ? WHERE id = ?', [isActive, id]);
     return { previous, user: await this.get(id) };
   },
+  async resetPassword(id, password) { await this.get(id); await database.execute('UPDATE users SET password_hash = ? WHERE id = ?', [await bcrypt.hash(password, 12), id]); return this.get(id); },
 };

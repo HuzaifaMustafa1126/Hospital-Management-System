@@ -36,6 +36,8 @@ npm run db:seed
 
 `db:init` safely creates the database, Phase 1 tables, roles, permissions, and their mappings. The application seed hashes the supplied password with bcrypt. Server startup also runs the safe initializer automatically.
 
+For local development, `npm run db:seed` also creates idempotent staff test accounts for Reception, Lab, Surgery, Blood Bank, and Billing. Their shared development password is `DevPassword123!`; use only in local development and change/remove these accounts before deployment.
+
 Run backend and frontend in separate terminals:
 
 ```bash

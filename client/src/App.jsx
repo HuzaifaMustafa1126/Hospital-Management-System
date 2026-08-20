@@ -13,6 +13,7 @@ import { PatientRegistrationPage } from './pages/PatientRegistrationPage';
 import { PatientListPage } from './pages/PatientListPage';
 import { PatientDetailPage } from './pages/PatientDetailPage';
 import { DoctorsPage } from './pages/DoctorsPage';
+import { RegistrationFeeSettingsPage } from './pages/RegistrationFeeSettingsPage';
 
 export function App() {
   return <BrowserRouter><Routes>
@@ -23,6 +24,7 @@ export function App() {
         <Route path="/patients" element={<PatientListPage />} />
         <Route path="/patients/:id" element={<PatientDetailPage />} />
         <Route path="/reception/patients" element={<PatientListPage />} />
+        <Route path="/reception/patients/:id" element={<PatientDetailPage />} />
         <Route path="/reception/patients/register" element={<PatientRegistrationPage />} />
         <Route path="/reception/patients/search" element={<PatientListPage />} />
       </Route>
@@ -31,10 +33,14 @@ export function App() {
         <Route path="/users/new" element={<UserDetailPage />} />
         <Route path="/users/:id" element={<UserDetailPage />} />
         <Route path="/users/:id/edit" element={<UserDetailPage />} />
+        <Route path="/admin/users" element={<UsersPage />} />
+        <Route path="/admin/users/create" element={<UserDetailPage />} />
+        <Route path="/admin/users/:id/edit" element={<UserDetailPage />} />
         <Route path="/audit-logs" element={<AuditLogsPage />} />
         <Route path="/admin/patients" element={<PatientListPage />} />
         <Route path="/admin/patients/:id/edit" element={<PatientDetailPage edit />} />
         <Route path="/admin/doctors" element={<DoctorsPage />} />
+        <Route path="/admin/settings/registration-fee" element={<RegistrationFeeSettingsPage />} />
       </Route>
     </Route></Route>
     <Route path="/access-denied" element={<PlaceholderPage title="Access denied" text="You do not have permission to view this page." />} />
