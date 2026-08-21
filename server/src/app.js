@@ -14,6 +14,7 @@ import { registrationPaymentRouter } from './routes/registration-payment.routes.
 import { settingsRouter } from './routes/settings.routes.js';
 import { serviceRouter } from './routes/service.routes.js';
 import { userRouter } from './routes/user.routes.js';
+import { laboratoryRouter } from './routes/laboratory.routes.js';
 
 export const app = express();
 
@@ -40,5 +41,6 @@ app.use('/api/v1/dashboard', dashboardRouter);
 app.use('/api/v1/patients', patientRouter);
 app.use('/api/v1/settings', settingsRouter);
 app.use('/api/v1/registration-payments', registrationPaymentRouter);
+app.use('/api/v1/laboratory', laboratoryRouter);
 app.use(notFound);
 app.use(errorHandler);

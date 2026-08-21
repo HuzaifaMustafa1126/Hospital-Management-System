@@ -40,11 +40,191 @@ export const patientService = {
       const [paymentResult] = await connection.execute('INSERT INTO registration_payments (patient_id, receipt_number, amount, payment_method, payment_status, received_by) VALUES (?, ?, ?, ?, \'PAID\', ?)', [patient.id, receiptNumber, amount, data.paymentMethod, actorId]);
       const [paymentRows] = await connection.execute(`SELECT rp.id, rp.receipt_number AS receiptNumber, rp.amount, rp.payment_method AS paymentMethod, rp.payment_status AS paymentStatus, rp.paid_at AS paidAt, p.id AS patientId, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.cnic, p.father_name AS fatherName, CONCAT('Dr. ', d.first_name, ' ', d.last_name) AS doctorName, u.id AS receivedById, u.first_name AS receivedByFirstName, u.last_name AS receivedByLastName FROM registration_payments rp JOIN patients p ON p.id = rp.patient_id JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = rp.received_by WHERE rp.id = ?`, [paymentResult.insertId]);
       const payment = presentPayment(paymentRows[0]);
+<<<<<<< HEAD
       await registrationAudit(connection, patient.id, actorId, 'CREATED', null, patientData(patient));
       await connection.execute('INSERT INTO audit_logs (id, user_id, action, entity, entity_id, new_data) VALUES (?, ?, ?, ?, ?, ?)', [randomUUID(), actorId, 'PATIENT_CREATED', 'PATIENT', String(patient.id), JSON.stringify(patient)]);
       await connection.execute('INSERT INTO audit_logs (id, user_id, action, entity, entity_id, new_data) VALUES (?, ?, ?, ?, ?, ?)', [randomUUID(), actorId, 'REGISTRATION_PAYMENT_CREATED', 'REGISTRATION_PAYMENT', String(payment.id), JSON.stringify(payment)]);
       await connection.commit(); return { patient, payment };
     } catch (error) { await connection.rollback(); throw error; } finally { if (locked) await connection.query("SELECT RELEASE_LOCK('hms_patient_number')"); connection.release(); }
+=======
+      await registrationAudit(
+        connection,
+        patient.id,
+        actorId,
+        "CREATED",
+        null,
+        patientData(patient),
+      );
+      await connection.execute(
+        "INSERT INTO audit_logs (id, user_id, action, entity, entity_id, new_data) VALUES (?, ?, ?, ?, ?, ?)",
+        [
+          randomUUID(),
+          actorId,
+          "PATIENT_CREATED",
+          "PATIENT",
+          String(patient.id),
+          JSON.stringify(patient),
+        ],
+      );
+      await connection.execute(
+        "INSERT INTO audit_logs (id, user_id, action, entity, entity_id, new_data) VALUES (?, ?, ?, ?, ?, ?)",
+        [
+          randomUUID(),
+          actorId,
+          "REGISTRATION_PAYMENT_CREATED",
+          "REGISTRATION_PAYMENT",
+          String(payment.id),
+          JSON.stringify(payment),
+        ],
+      );
+      await connection.commit();
+      return { patient, payment };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      if (locked)
+        await connection.query("SELECT RELEASE_LOCK('hms_patient_number')");
+      connection.release();
+    }
+  },
+  async get(id) {
+    const patient = await getById(id);
+    const [services] = await database.execute(
+      `SELECT ps.id, s.name AS serviceName, d.name AS departmentName, ps.quantity, ps.unit_price AS unitPrice, ps.total_amount AS totalAmount, ps.status, ps.created_at AS createdAt, u.first_name AS addedByFirstName, u.last_name AS addedByLastName FROM patient_services ps JOIN services s ON s.id = ps.service_id JOIN departments d ON d.id = s.department_id JOIN users u ON u.id = ps.added_by WHERE ps.patient_id = ? ORDER BY ps.created_at DESC`,
+      [id],
+    );
+    return {
+      ...patient,
+      services: services.map((service) => ({
+        ...service,
+        unitPrice: Number(service.unitPrice),
+        totalAmount: Number(service.totalAmount),
+        addedBy: `${service.addedByFirstName} ${service.addedByLastName}`,
+      })),
+    };
+  },
+  async checkDuplicate(field, value) {
+    const normalized =
+      field === "cnic" ? normalizeCnic(value) : normalizePhone(value);
+    const patient = await findDuplicate(field, normalized);
+    return { exists: Boolean(patient), ...(patient ? { patient } : {}) };
+  },
+  async list({ page, limit, search }) {
+    const safePage = Number.isInteger(page) && page > 0 ? page : 1;
+    const safeLimit =
+      Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : 20;
+    const safeOffset = Math.max(0, (safePage - 1) * safeLimit);
+    const term = search ? `%${search.trim()}%` : null;
+    const where = term
+      ? "WHERE p.patient_number LIKE ? OR p.cnic LIKE ? OR p.phone LIKE ? OR CONCAT(p.first_name, ' ', p.last_name) LIKE ?"
+      : "";
+    const params = term ? [term, term, term, term] : [];
+    const [rows] = await database.execute(
+      `${select} ${where} ORDER BY p.created_at DESC LIMIT ${safeLimit} OFFSET ${safeOffset}`,
+      params,
+    );
+    const [counts] = await database.execute(
+      `SELECT COUNT(*) AS total FROM patients p ${where}`,
+      params,
+    );
+    const total = counts[0].total;
+    return {
+      items: rows.map(present),
+      page: safePage,
+      limit: safeLimit,
+      total,
+      totalPages: total ? Math.ceil(total / safeLimit) : 0,
+    };
+  },
+  async search(query) {
+    const value = query.trim();
+    const cnic =
+      value.replace(/\D/g, "").length === 13 ? normalizeCnic(value) : null;
+    const [rows] = await database.execute(
+      `${select} WHERE p.is_active = TRUE AND (p.cnic = ? OR p.patient_number = ? OR p.phone LIKE ? OR CONCAT(p.first_name, ' ', p.last_name) LIKE ?) ORDER BY p.created_at DESC LIMIT 50`,
+      [cnic || value, value, `%${value}%`, `%${value}%`],
+    );
+    return rows.map(present);
+  },
+  async update(id, data, actorId) {
+    const previous = await getById(id);
+    const connection = await database.getConnection();
+    try {
+      await connection.beginTransaction();
+      if (data.doctorId) await activeDoctor(data.doctorId, connection);
+      const changes = {
+        firstName: "first_name",
+        lastName: "last_name",
+        fatherName: "father_name",
+        cnic: "cnic",
+        phone: "phone",
+        address: "address",
+        doctorId: "doctor_id",
+      };
+      const entries = Object.entries(changes).filter(([key]) => key in data);
+      const values = entries.map(([key]) =>
+        key === "cnic"
+          ? normalizeCnic(data[key])
+          : key === "phone"
+            ? normalizePhone(data[key])
+            : data[key],
+      );
+      if (
+        "cnic" in data &&
+        (await findDuplicate("cnic", normalizeCnic(data.cnic), connection, id))
+      )
+        throw new AppError(
+          409,
+          "A patient with this CNIC already exists.",
+          [],
+          "cnic",
+        );
+      if (
+        "phone" in data &&
+        (await findDuplicate(
+          "phone",
+          normalizePhone(data.phone),
+          connection,
+          id,
+        ))
+      )
+        throw new AppError(
+          409,
+          "A patient with this phone number already exists.",
+          [],
+          "phone",
+        );
+      await connection.execute(
+        `UPDATE patients SET ${entries.map(([, column]) => `${column} = ?`).join(", ")} WHERE id = ?`,
+        [...values, id],
+      );
+      const patient = await getById(id, connection);
+      await registrationAudit(
+        connection,
+        id,
+        actorId,
+        "UPDATED",
+        patientData(previous),
+        patientData(patient),
+      );
+      await connection.commit();
+      return { previous, patient };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  },
+  async remove(id) {
+    await getById(id);
+    await database.execute(
+      "UPDATE patients SET is_active = FALSE WHERE id = ?",
+      [id],
+    );
+    return this.get(id);
+>>>>>>> 1b6046d (Add Departments)
   },
   async get(id) { return getById(id); },
   async checkDuplicate(field, value) { const normalized = field === 'cnic' ? normalizeCnic(value) : normalizePhone(value); const patient = await findDuplicate(field, normalized); return { exists: Boolean(patient), ...(patient ? { patient } : {}) }; },

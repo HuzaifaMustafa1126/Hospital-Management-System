@@ -16,6 +16,7 @@ async function seed() {
   const connection = await database.getConnection();
   try {
     await connection.beginTransaction();
+<<<<<<< HEAD
     for (const name of roles) await connection.execute('INSERT INTO roles (id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)', [randomUUID(), name]);
     for (const name of permissions) await connection.execute('INSERT INTO permissions (id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)', [randomUUID(), name]);
     const [roleRows] = await connection.execute('SELECT id, name FROM roles');
@@ -27,6 +28,59 @@ async function seed() {
     for (const role of ['LAB_ATTENDANT', 'SURGERY_STAFF', 'BLOOD_BANK_STAFF', 'BILLING_STAFF']) for (const name of departmentPatientPermissions) await connection.execute('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)', [roleIds[role], permissionIds[name]]);
     await connection.execute("DELETE rp FROM role_permissions rp JOIN roles r ON r.id = rp.role_id JOIN permissions p ON p.id = rp.permission_id WHERE p.name = 'PATIENT_UPDATE' AND r.name <> 'SUPER_ADMIN'");
     await connection.execute("INSERT INTO settings (setting_key, setting_value) VALUES ('REGISTRATION_FEE', '500') ON DUPLICATE KEY UPDATE setting_key = VALUES(setting_key)");
+=======
+    for (const name of roles)
+      await connection.execute(
+        "INSERT INTO roles (id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)",
+        [randomUUID(), name],
+      );
+    for (const name of permissions)
+      await connection.execute(
+        "INSERT INTO permissions (id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)",
+        [randomUUID(), name],
+      );
+    const [roleRows] = await connection.execute("SELECT id, name FROM roles");
+    const [permissionRows] = await connection.execute(
+      "SELECT id, name FROM permissions",
+    );
+    const roleIds = Object.fromEntries(
+      roleRows.map((role) => [role.name, role.id]),
+    );
+    const permissionIds = Object.fromEntries(
+      permissionRows.map((permission) => [permission.name, permission.id]),
+    );
+    for (const name of permissions)
+      await connection.execute(
+        "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+        [roleIds.SUPER_ADMIN, permissionIds[name]],
+      );
+    for (const name of receptionPermissions)
+      await connection.execute(
+        "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+        [roleIds.RECEPTION, permissionIds[name]],
+      );
+    for (const role of [
+      "LAB_ATTENDANT",
+      "SURGERY_STAFF",
+      "BLOOD_BANK_STAFF",
+      "BILLING_STAFF",
+    ])
+      for (const name of departmentPatientPermissions)
+        await connection.execute(
+          "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+        [roleIds[role], permissionIds[name]],
+      );
+    await connection.execute(
+      "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+      [roleIds.LAB_ATTENDANT, permissionIds.LAB_SERVICE_ADD],
+    );
+    await connection.execute(
+      "DELETE rp FROM role_permissions rp JOIN roles r ON r.id = rp.role_id JOIN permissions p ON p.id = rp.permission_id WHERE p.name = 'PATIENT_UPDATE' AND r.name <> 'SUPER_ADMIN'",
+    );
+    await connection.execute(
+      "INSERT INTO settings (setting_key, setting_value) VALUES ('REGISTRATION_FEE', '500') ON DUPLICATE KEY UPDATE setting_key = VALUES(setting_key)",
+    );
+>>>>>>> 1b6046d (Add Departments)
     const email = env.SUPER_ADMIN_EMAIL.toLowerCase();
     const [users] = await connection.execute('SELECT id FROM users WHERE email = ?', [email]);
     const userId = users[0]?.id || randomUUID();
