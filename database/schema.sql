@@ -147,8 +147,6 @@ CREATE TABLE IF NOT EXISTS services (
   CONSTRAINT services_department_id_fkey FOREIGN KEY (department_id) REFERENCES departments(id),
   CONSTRAINT services_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-<<<<<<< HEAD
-=======
 
 CREATE TABLE IF NOT EXISTS patient_services (
   id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, patient_id BIGINT UNSIGNED NOT NULL, service_id BIGINT UNSIGNED NOT NULL,
@@ -160,4 +158,3 @@ CREATE TABLE IF NOT EXISTS patient_services (
   CONSTRAINT patient_services_service_fkey FOREIGN KEY (service_id) REFERENCES services(id),
   CONSTRAINT patient_services_added_by_fkey FOREIGN KEY (added_by) REFERENCES users(id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
->>>>>>> 1b6046d (Add Departments)
