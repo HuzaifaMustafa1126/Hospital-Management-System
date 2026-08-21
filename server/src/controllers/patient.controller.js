@@ -6,7 +6,8 @@ const patientInput = (body) => Object.fromEntries(Object.entries({
   firstName: body.firstName ?? body.first_name, lastName: body.lastName ?? body.last_name,
   fatherName: body.fatherName ?? body.father_name, cnic: body.cnic, phone: body.phone,
   address: body.address, doctorId: body.doctorId ?? body.doctor_id,
-  paymentMethod: body.paymentMethod ?? body.payment_method,
+      paymentMethod: body.paymentMethod ?? body.payment_method,
+      feeType: body.feeType ?? body.fee_type, registrationFee: body.registrationFee ?? body.registration_fee,
 }).filter(([, value]) => value !== undefined));
 export const patientController = {
   async create(req, res) { const registration = await patientService.create(patientSchema.parse(patientInput(req.body)), req.user.id); res.status(201).json({ success: true, message: 'Patient registered successfully', data: registration }); },

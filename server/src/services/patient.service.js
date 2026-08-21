@@ -47,6 +47,7 @@ const presentPayment = (row) => ({
   id: row.id,
   receiptNumber: row.receiptNumber,
   amount: Number(row.amount),
+  feeType: row.feeType,
   paymentMethod: row.paymentMethod,
   paymentStatus: row.paymentStatus,
   paidAt: row.paidAt,
@@ -177,9 +178,13 @@ export const patientService = {
       const [feeRows] = await connection.execute(
         "SELECT setting_value AS amount FROM settings WHERE setting_key = 'REGISTRATION_FEE' FOR UPDATE",
       );
-      const amount = Number(feeRows[0]?.amount);
-      if (!Number.isFinite(amount) || amount <= 0)
+      const configuredFee = Number(feeRows[0]?.amount);
+      if (!Number.isFinite(configuredFee) || configuredFee < 0)
         throw new AppError(500, "Registration fee is not configured correctly");
+      const feeType = data.feeType || "FREE";
+      const amount = feeType === "FREE" ? 0 : Number(data.registrationFee);
+      if (feeType === "DISCOUNTED" && (!Number.isFinite(amount) || amount < 0 || amount > configuredFee))
+        throw new AppError(400, "Discounted registration fee must be between PKR 0 and the configured registration fee.", [], "registrationFee");
       const receiptPrefix = `REC-${year}-`;
       const [latestReceipt] = await connection.execute(
         "SELECT receipt_number AS receiptNumber FROM registration_payments WHERE receipt_number LIKE ? ORDER BY receipt_number DESC LIMIT 1 FOR UPDATE",
@@ -187,11 +192,11 @@ export const patientService = {
       );
       const receiptNumber = `${receiptPrefix}${String(latestReceipt.length ? Number(latestReceipt[0].receiptNumber.slice(-6)) + 1 : 1).padStart(6, "0")}`;
       const [paymentResult] = await connection.execute(
-        "INSERT INTO registration_payments (patient_id, receipt_number, amount, payment_method, payment_status, received_by) VALUES (?, ?, ?, ?, 'PAID', ?)",
-        [patient.id, receiptNumber, amount, data.paymentMethod, actorId],
+        "INSERT INTO registration_payments (patient_id, receipt_number, amount, fee_type, payment_method, payment_status, received_by) VALUES (?, ?, ?, ?, ?, 'PAID', ?)",
+        [patient.id, receiptNumber, amount, feeType, data.paymentMethod, actorId],
       );
       const [paymentRows] = await connection.execute(
-        `SELECT rp.id, rp.receipt_number AS receiptNumber, rp.amount, rp.payment_method AS paymentMethod, rp.payment_status AS paymentStatus, rp.paid_at AS paidAt, p.id AS patientId, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.cnic, p.father_name AS fatherName, CONCAT('Dr. ', d.first_name, ' ', d.last_name) AS doctorName, u.id AS receivedById, u.first_name AS receivedByFirstName, u.last_name AS receivedByLastName FROM registration_payments rp JOIN patients p ON p.id = rp.patient_id JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = rp.received_by WHERE rp.id = ?`,
+        `SELECT rp.id, rp.receipt_number AS receiptNumber, rp.amount, rp.fee_type AS feeType, rp.payment_method AS paymentMethod, rp.payment_status AS paymentStatus, rp.paid_at AS paidAt, p.id AS patientId, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.cnic, p.father_name AS fatherName, CONCAT('Dr. ', d.first_name, ' ', d.last_name) AS doctorName, u.id AS receivedById, u.first_name AS receivedByFirstName, u.last_name AS receivedByLastName FROM registration_payments rp JOIN patients p ON p.id = rp.patient_id JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = rp.received_by WHERE rp.id = ?`,
         [paymentResult.insertId],
       );
       const payment = presentPayment(paymentRows[0]);

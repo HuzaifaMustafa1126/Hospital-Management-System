@@ -1,0 +1,2 @@
+ALTER TABLE registration_payments
+  ADD COLUMN fee_type ENUM('FREE', 'DISCOUNTED') NOT NULL DEFAULT 'DISCOUNTED' AFTER amount;
