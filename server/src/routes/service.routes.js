@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { serviceController } from '../controllers/service.controller.js';
+import { authenticate, requireRole } from '../middleware/auth.middleware.js';
+import { asyncHandler } from '../utils/async-handler.js';
+export const serviceRouter = Router();
+serviceRouter.use(authenticate);
+serviceRouter.get('/', asyncHandler(serviceController.list));
+serviceRouter.get('/:id', asyncHandler(serviceController.get));
+serviceRouter.post('/', requireRole('SUPER_ADMIN'), asyncHandler(serviceController.create));
+serviceRouter.patch('/:id', requireRole('SUPER_ADMIN'), asyncHandler(serviceController.update));
+serviceRouter.patch('/:id/status', requireRole('SUPER_ADMIN'), asyncHandler(serviceController.status));

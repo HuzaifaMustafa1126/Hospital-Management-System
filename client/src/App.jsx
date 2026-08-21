@@ -13,6 +13,8 @@ import { PatientRegistrationPage } from './pages/PatientRegistrationPage';
 import { PatientListPage } from './pages/PatientListPage';
 import { PatientDetailPage } from './pages/PatientDetailPage';
 import { DoctorsPage } from './pages/DoctorsPage';
+import { DepartmentsPage } from './pages/DepartmentsPage';
+import { ServicesPage } from './pages/ServicesPage';
 import { RegistrationFeeSettingsPage } from './pages/RegistrationFeeSettingsPage';
 
 export function App() {
@@ -40,6 +42,8 @@ export function App() {
         <Route path="/admin/patients" element={<PatientListPage />} />
         <Route path="/admin/patients/:id/edit" element={<PatientDetailPage edit />} />
         <Route path="/admin/doctors" element={<DoctorsPage />} />
+        <Route path="/departments" element={<DepartmentsPage />} />
+        <Route path="/services" element={<ServicesPage />} />
         <Route path="/admin/settings/registration-fee" element={<RegistrationFeeSettingsPage />} />
       </Route>
     </Route></Route>

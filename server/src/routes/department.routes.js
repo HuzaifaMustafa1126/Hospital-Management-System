@@ -1,0 +1,11 @@
+import { Router } from 'express';
+import { departmentController } from '../controllers/department.controller.js';
+import { authenticate, requireRole } from '../middleware/auth.middleware.js';
+import { asyncHandler } from '../utils/async-handler.js';
+export const departmentRouter = Router();
+departmentRouter.use(authenticate);
+departmentRouter.get('/', asyncHandler(departmentController.list));
+departmentRouter.get('/:id', asyncHandler(departmentController.get));
+departmentRouter.post('/', requireRole('SUPER_ADMIN'), asyncHandler(departmentController.create));
+departmentRouter.patch('/:id', requireRole('SUPER_ADMIN'), asyncHandler(departmentController.update));
+departmentRouter.patch('/:id/status', requireRole('SUPER_ADMIN'), asyncHandler(departmentController.status));
