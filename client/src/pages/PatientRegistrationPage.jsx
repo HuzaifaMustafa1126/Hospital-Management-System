@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { doctorService } from "../services/doctor.service";
 import { patientService } from "../services/patient.service";
 import { settingsService } from "../services/settings.service";
@@ -19,9 +20,7 @@ const empty = {
 
 const cnic = (value) => {
   const d = value.replace(/\D/g, "").slice(0, 13);
-  return [d.slice(0, 5), d.slice(5, 12), d.slice(12)]
-    .filter(Boolean)
-    .join("-");
+  return [d.slice(0, 5), d.slice(5, 12), d.slice(12)].filter(Boolean).join("-");
 };
 
 export function PatientRegistrationPage() {
@@ -33,6 +32,7 @@ export function PatientRegistrationPage() {
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState(null);
+  const [duplicates, setDuplicates] = useState({ cnic: null, phone: null });
 
   useEffect(() => {
     doctorService
@@ -49,9 +49,40 @@ export function PatientRegistrationPage() {
         e.target.name === "cnic" ? cnic(e.target.value) : e.target.value,
     }));
 
+  useEffect(() => {
+    const value = form.cnic.replace(/\D/g, "");
+    if (value.length !== 13)
+      return setDuplicates((d) => ({ ...d, cnic: null }));
+    const timer = setTimeout(
+      () =>
+        patientService
+          .checkCnic(form.cnic)
+          .then((r) => setDuplicates((d) => ({ ...d, cnic: r.data.data })))
+          .catch(() => setDuplicates((d) => ({ ...d, cnic: null }))),
+      500,
+    );
+    return () => clearTimeout(timer);
+  }, [form.cnic]);
+  useEffect(() => {
+    const value = form.phone.replace(/\D/g, "");
+    if (!/^03\d{9}$/.test(value) && !/^92\d{10}$/.test(value))
+      return setDuplicates((d) => ({ ...d, phone: null }));
+    const timer = setTimeout(
+      () =>
+        patientService
+          .checkPhone(form.phone)
+          .then((r) => setDuplicates((d) => ({ ...d, phone: r.data.data })))
+          .catch(() => setDuplicates((d) => ({ ...d, phone: null }))),
+      500,
+    );
+    return () => clearTimeout(timer);
+  }, [form.phone]);
+
   const submit = async (e) => {
     e.preventDefault();
     setError("");
+    if (duplicates.cnic?.exists || duplicates.phone?.exists)
+      return setError("An entered CNIC or phone number is already registered.");
 
     const actualFee = Number(fee?.amount ?? 0);
     const discountedAmount = Number(form.registrationFee);
@@ -114,9 +145,7 @@ export function PatientRegistrationPage() {
 
       setResult(r.data.data);
     } catch (e) {
-      setError(
-        e.response?.data?.message || "Unable to register patient.",
-      );
+      setError(e.response?.data?.message || "Unable to register patient.");
     } finally {
       setSaving(false);
     }
@@ -151,10 +180,7 @@ export function PatientRegistrationPage() {
         </dl>
 
         <div className="mt-6 flex gap-3">
-          <Link
-            className="hms-button-primary"
-            to={`/patients/${patient.id}`}
-          >
+          <Link className="hms-button-primary" to={`/patients/${patient.id}`}>
             View patient
           </Link>
 
@@ -174,13 +200,9 @@ export function PatientRegistrationPage() {
 
   return (
     <div className="max-w-4xl">
-      <p className="text-sm font-semibold text-teal-700">
-        Patient Management
-      </p>
+      <p className="text-sm font-semibold text-teal-700">Patient Management</p>
 
-      <h2 className="mt-1 text-3xl font-bold">
-        Register New Patient
-      </h2>
+      <h2 className="mt-1 text-3xl font-bold">Register New Patient</h2>
 
       <form
         onSubmit={submit}
@@ -192,9 +214,7 @@ export function PatientRegistrationPage() {
           </p>
         )}
 
-        <h3 className="font-semibold sm:col-span-2">
-          Patient information
-        </h3>
+        <h3 className="font-semibold sm:col-span-2">Patient information</h3>
 
         {[
           ["firstName", "First name"],
@@ -213,12 +233,39 @@ export function PatientRegistrationPage() {
               value={form[name]}
               onChange={change}
             />
+            {duplicates[name]?.exists && (
+              <span className="mt-2 block rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800">
+                <span className="flex items-center gap-1 font-bold">
+                  <AlertTriangle size={15} />{" "}
+                  {name === "cnic"
+                    ? "Patient Already Registered"
+                    : "Phone Number Already Registered"}
+                </span>
+                <span className="mt-1 block">
+                  This {name === "cnic" ? "CNIC" : "phone number"} is already
+                  associated with a patient.
+                </span>
+                <span className="mt-1 block font-semibold">
+                  Patient No: {duplicates[name].patient.patientNumber}
+                </span>
+                <Link
+                  className="mt-2 inline-block font-bold underline"
+                  to={`/patients/${duplicates[name].patient.id}`}
+                >
+                  View Patient
+                </Link>
+              </span>
+            )}
+            {duplicates[name] && !duplicates[name].exists && (
+              <span className="mt-1 flex items-center gap-1 text-xs text-emerald-700">
+                <CheckCircle2 size={14} /> Available
+              </span>
+            )}
           </label>
         ))}
 
         <label className="text-sm font-medium sm:col-span-2">
           Address
-
           <textarea
             required
             className="hms-input"
@@ -230,7 +277,6 @@ export function PatientRegistrationPage() {
 
         <label className="text-sm font-medium">
           Doctor
-
           <select
             required
             className="hms-input"
@@ -250,7 +296,6 @@ export function PatientRegistrationPage() {
 
         <label className="text-sm font-medium">
           Payment method
-
           <select
             className="hms-input"
             name="paymentMethod"
@@ -266,9 +311,7 @@ export function PatientRegistrationPage() {
 
         {/* Registration Fee */}
         <fieldset className="border-t pt-5 sm:col-span-2">
-          <legend className="font-semibold">
-            Registration Fee
-          </legend>
+          <legend className="font-semibold">Registration Fee</legend>
 
           <div className="mt-3 grid gap-3 sm:grid-cols-3">
             {/* FREE */}
@@ -387,10 +430,7 @@ export function PatientRegistrationPage() {
             Cancel
           </button>
 
-          <button
-            disabled={saving || !fee}
-            className="hms-button-primary"
-          >
+          <button disabled={saving || !fee} className="hms-button-primary">
             {saving ? "Registering…" : "Confirm Registration"}
           </button>
         </div>

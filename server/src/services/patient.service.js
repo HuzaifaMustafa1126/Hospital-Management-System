@@ -108,7 +108,7 @@ async function findDuplicate(
   const column = field === "cnic" ? "cnic" : "phone";
   const values = excludeId ? [value, excludeId] : [value];
   const [rows] = await connection.execute(
-    `SELECT id, patient_number AS patientNumber FROM patients WHERE ${column} = ? AND is_active = TRUE${excludeId ? " AND id != ?" : ""} LIMIT 1`,
+    `SELECT id, patient_number AS patientNumber, first_name AS firstName, last_name AS lastName FROM patients WHERE ${column} = ? AND is_active = TRUE${excludeId ? " AND id != ?" : ""} LIMIT 1`,
     values,
   );
   return rows[0] || null;

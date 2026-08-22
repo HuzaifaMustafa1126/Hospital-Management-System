@@ -1,13 +1,230 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { CalendarDays, ChevronLeft, ChevronRight, FileSearch, Filter, Plus, Search } from 'lucide-react';
-import { patientService } from '../services/patient.service';
-import { useAuth } from '../context/AuthContext';
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
+import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  FileSearch,
+  Filter,
+  Plus,
+  Search,
+} from "lucide-react";
+import { patientService } from "../services/patient.service";
+import { useAuth } from "../context/AuthContext";
 
 export function PatientListPage() {
-  const { user } = useAuth(); const admin = user?.roles.includes('SUPER_ADMIN');
-  const [data, setData] = useState({ items: [], pagination: {} }); const [search, setSearch] = useState(''); const [error, setError] = useState(''); const [loading, setLoading] = useState(true);
-  const load = async (term = '') => { try { setLoading(true); setData((await patientService.list({ page: 1, limit: 20, search: term || undefined })).data.data); } catch (requestError) { setError(requestError.response?.data?.message || 'Unable to load patients'); } finally { setLoading(false); } };
-  useEffect(() => { void load(); }, []);
-  return <div className="space-y-5"><section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p className="text-sm font-semibold text-teal-700">Patient management</p><h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">Patients</h2><p className="mt-1.5 text-sm text-slate-500">Manage and review registered hospital patients.</p></div><Link className="hms-button-primary" to="/reception/patients/register"><Plus size={17} /> Register patient</Link></section><section className="hms-card p-4"><form className="flex flex-col gap-3 lg:flex-row" onSubmit={(event) => { event.preventDefault(); void load(search); }}><label className="relative flex-1"><Search className="absolute left-3.5 top-3 text-slate-400" size={18} /><input className="hms-input mt-0 pl-10" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search by patient name, CNIC, phone or patient number" /></label><button className="hms-button-primary"><Search size={16} /> Search</button><button type="button" className="hms-button-secondary"><Filter size={16} /> Filters</button></form></section>{error && <p className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">{error}</p>}<section className="hms-card overflow-hidden"><div className="flex items-center justify-between border-b border-slate-100 px-5 py-4"><div><h3 className="font-bold text-slate-900">Patient directory</h3><p className="mt-0.5 text-xs text-slate-500">{data.pagination?.total ?? data.items.length} registered patient records</p></div><span className="hidden items-center gap-2 text-xs text-slate-500 sm:flex"><CalendarDays size={15} /> Updated just now</span></div><div className="overflow-x-auto"><table className="min-w-[900px] w-full text-left text-sm"><thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-500"><tr><th className="px-5 py-3.5">Patient</th><th className="px-4 py-3.5">Patient number</th><th className="px-4 py-3.5">CNIC</th><th className="px-4 py-3.5">Phone</th><th className="px-4 py-3.5">Doctor</th><th className="px-4 py-3.5">Registered</th><th className="px-4 py-3.5">Status</th><th className="px-5 py-3.5 text-right">Actions</th></tr></thead><tbody className="divide-y divide-slate-100">{loading ? <tr><td colSpan="8" className="px-5 py-12 text-center text-slate-500">Loading patient records…</td></tr> : data.items.length ? data.items.map((patient) => <tr className="transition hover:bg-slate-50/80" key={patient.id}><td className="px-5 py-4"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-full bg-sky-100 text-xs font-bold text-sky-700">{patient.firstName?.[0]}{patient.lastName?.[0]}</span><span><b className="block text-slate-800">{patient.firstName} {patient.lastName}</b><small className="text-slate-500">{patient.fatherName}</small></span></div></td><td className="px-4 py-4 font-medium text-slate-700">{patient.patientNumber}</td><td className="px-4 py-4 text-slate-600">{patient.cnic}</td><td className="px-4 py-4 text-slate-600">{patient.phone}</td><td className="px-4 py-4 text-slate-600">Dr. {patient.doctor.firstName} {patient.doctor.lastName}</td><td className="px-4 py-4 text-slate-600">{new Date(patient.createdAt).toLocaleDateString()}</td><td className="px-4 py-4"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">{patient.registrationLocked ? 'LOCKED' : 'REGISTERED'}</span></td><td className="px-5 py-4 text-right"><Link className="font-semibold text-teal-700 hover:text-teal-800" to={`/patients/${patient.id}`}>View</Link>{admin && <Link className="ml-4 font-semibold text-slate-600 hover:text-slate-900" to={`/admin/patients/${patient.id}/edit`}>Edit</Link>}</td></tr>) : <tr><td colSpan="8" className="px-5 py-12 text-center"><FileSearch className="mx-auto mb-3 text-slate-300" size={30}/><p className="font-medium text-slate-700">No patients found</p><p className="mt-1 text-sm text-slate-500">Try a different search term or register a new patient.</p></td></tr>}</tbody></table></div><div className="flex items-center justify-between border-t border-slate-100 px-5 py-3.5 text-sm text-slate-500"><span>Showing up to {data.items.length} records</span><div className="flex gap-1"><button className="rounded-lg border border-slate-200 p-1.5 disabled:opacity-40" disabled><ChevronLeft size={16}/></button><button className="rounded-lg border border-slate-200 p-1.5 disabled:opacity-40" disabled><ChevronRight size={16}/></button></div></div></section></div>;
+  const { user } = useAuth();
+  const admin = user?.roles.includes("SUPER_ADMIN");
+  const [data, setData] = useState({ items: [], pagination: {} });
+  const [search, setSearch] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const load = async (term = "") => {
+    try {
+      setLoading(true);
+      setData(
+        (
+          await patientService.list({
+            page: 1,
+            limit: 20,
+            search: term || undefined,
+          })
+        ).data.data,
+      );
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.message || "Unable to load patients",
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    void load();
+  }, []);
+  return (
+    <div className="space-y-5">
+      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <p className="text-sm font-semibold text-teal-700">
+            Patient management
+          </p>
+          <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+            Patients
+          </h2>
+          <p className="mt-1.5 text-sm text-slate-500">
+            Manage and review registered hospital patients.
+          </p>
+        </div>
+        <Link className="hms-button-primary" to="/reception/patients/register">
+          <Plus size={17} /> Register patient
+        </Link>
+      </section>
+      <section className="hms-card p-4">
+        <form
+          className="flex flex-col gap-3 lg:flex-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void load(search);
+          }}
+        >
+          <label className="relative flex-1">
+            <Search
+              className="absolute left-3.5 top-3 text-slate-400"
+              size={18}
+            />
+            <input
+              className="hms-input mt-0 pl-10"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by patient name, CNIC, phone or patient number"
+            />
+          </label>
+          <button className="hms-button-primary">
+            <Search size={16} /> Search
+          </button>
+          <button type="button" className="hms-button-secondary">
+            <Filter size={16} /> Filters
+          </button>
+        </form>
+      </section>
+      {error && (
+        <p className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+          {error}
+        </p>
+      )}
+      <section className="hms-card overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <div>
+            <h3 className="font-bold text-slate-900">Patient directory</h3>
+            <p className="mt-0.5 text-xs text-slate-500">
+              {data.pagination?.total ?? data.items.length} registered patient
+              records
+            </p>
+          </div>
+          <span className="hidden items-center gap-2 text-xs text-slate-500 sm:flex">
+            <CalendarDays size={15} /> Updated just now
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-[900px] w-full text-left text-sm">
+            <thead className="bg-slate-50/80 text-xs font-semibold uppercase tracking-wider text-slate-500">
+              <tr>
+                <th className="px-5 py-3.5">Patient</th>
+                <th className="px-4 py-3.5">Patient number</th>
+                <th className="px-4 py-3.5">CNIC</th>
+                <th className="px-4 py-3.5">Phone</th>
+                <th className="px-4 py-3.5">Doctor</th>
+                <th className="px-4 py-3.5">Registered</th>
+                <th className="px-4 py-3.5">Status</th>
+                <th className="px-5 py-3.5 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {loading ? (
+                <tr>
+                  <td
+                    colSpan="8"
+                    className="px-5 py-12 text-center text-slate-500"
+                  >
+                    Loading patient records…
+                  </td>
+                </tr>
+              ) : data.items.length ? (
+                data.items.map((patient) => (
+                  <tr
+                    className="transition hover:bg-slate-50/80"
+                    key={patient.id}
+                  >
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-3">
+                        <span className="grid h-9 w-9 place-items-center rounded-full bg-sky-100 text-xs font-bold text-sky-700">
+                          {patient.firstName?.[0]}
+                          {patient.lastName?.[0]}
+                        </span>
+                        <span>
+                          <b className="block text-slate-800">
+                            {patient.firstName} {patient.lastName}
+                          </b>
+                          <small className="text-slate-500">
+                            {patient.fatherName}
+                          </small>
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-4 font-medium text-slate-700">
+                      {patient.patientNumber}
+                    </td>
+                    <td className="px-4 py-4 text-slate-600">{patient.cnic}</td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {patient.phone}
+                    </td>
+                    <td className="px-4 py-4 text-slate-600">
+                      Dr. {patient.doctor.firstName} {patient.doctor.lastName}
+                    </td>
+                    <td className="px-4 py-4 text-slate-600">
+                      {new Date(patient.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="px-4 py-4">
+                      <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                        REGISTERED
+                      </span>
+                    </td>
+                    <td className="px-5 py-4 text-right">
+                      <Link
+                        className="font-semibold text-teal-700 hover:text-teal-800"
+                        to={`/patients/${patient.id}`}
+                      >
+                        View
+                      </Link>
+                      {admin && (
+                        <Link
+                          className="ml-4 font-semibold text-slate-600 hover:text-slate-900"
+                          to={`/admin/patients/${patient.id}/edit`}
+                        >
+                          Edit
+                        </Link>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="8" className="px-5 py-12 text-center">
+                    <FileSearch
+                      className="mx-auto mb-3 text-slate-300"
+                      size={30}
+                    />
+                    <p className="font-medium text-slate-700">
+                      No patients found
+                    </p>
+                    <p className="mt-1 text-sm text-slate-500">
+                      Try a different search term or register a new patient.
+                    </p>
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3.5 text-sm text-slate-500">
+          <span>Showing up to {data.items.length} records</span>
+          <div className="flex gap-1">
+            <button
+              className="rounded-lg border border-slate-200 p-1.5 disabled:opacity-40"
+              disabled
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <button
+              className="rounded-lg border border-slate-200 p-1.5 disabled:opacity-40"
+              disabled
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }

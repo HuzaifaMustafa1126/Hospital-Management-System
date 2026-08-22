@@ -191,7 +191,7 @@ export function PatientDetailPage({ edit = false }) {
                   </h2>
                   <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
                     {patient.registrationLocked
-                      ? "REGISTERED · LOCKED"
+                      ? "REGISTERED"
                       : "REGISTERED"}
                   </span>
                 </div>
@@ -304,14 +304,27 @@ export function PatientDetailPage({ edit = false }) {
             {patient.services?.length ? (
               <div className="mt-3 space-y-3">
                 {patient.services.map((service) => (
-                  <div key={service.id} className="rounded-lg bg-slate-50 p-3 text-sm">
-                    <b className="block text-slate-800">{service.serviceName}</b>
-                    <p className="mt-1 text-slate-500">{service.departmentName} · ×{service.quantity}</p>
-                    <p className="mt-1 font-semibold text-slate-700">PKR {service.totalAmount}</p>
+                  <div
+                    key={service.id}
+                    className="rounded-lg bg-slate-50 p-3 text-sm"
+                  >
+                    <b className="block text-slate-800">
+                      {service.serviceName}
+                    </b>
+                    <p className="mt-1 text-slate-500">
+                      {service.departmentName} · ×{service.quantity}
+                    </p>
+                    <p className="mt-1 font-semibold text-slate-700">
+                      PKR {service.totalAmount}
+                    </p>
                   </div>
                 ))}
               </div>
-            ) : <p className="mt-2 text-sm leading-6 text-slate-500">No services have been added yet.</p>}
+            ) : (
+              <p className="mt-2 text-sm leading-6 text-slate-500">
+                No services have been added yet.
+              </p>
+            )}
           </section>
         </aside>
       </div>
