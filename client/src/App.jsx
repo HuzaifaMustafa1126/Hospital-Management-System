@@ -19,6 +19,7 @@ import { PatientRegistrationPage } from "./pages/PatientRegistrationPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { RegistrationFeeSettingsPage } from "./pages/RegistrationFeeSettingsPage";
 import { ServicesPage } from "./pages/ServicesPage";
+import { SurgeryPage } from "./pages/SurgeryPage";
 import { UserDetailPage } from "./pages/UserDetailPage";
 import { UsersPage } from "./pages/UsersPage";
 
@@ -44,10 +45,7 @@ export function App() {
               <Route path="/patients" element={<PatientListPage />} />
               <Route path="/patients/:id" element={<PatientDetailPage />} />
 
-              <Route
-                path="/reception/patients"
-                element={<PatientListPage />}
-              />
+              <Route path="/reception/patients" element={<PatientListPage />} />
 
               <Route
                 path="/reception/patients/:id"
@@ -68,9 +66,7 @@ export function App() {
             {/* Laboratory Routes */}
             <Route
               element={
-                <RoleProtectedRoute
-                  roles={["LAB_ATTENDANT", "SUPER_ADMIN"]}
-                />
+                <RoleProtectedRoute roles={["LAB_ATTENDANT", "SUPER_ADMIN"]} />
               }
             >
               <Route
@@ -83,74 +79,51 @@ export function App() {
                 element={<LaboratoryPatientPage />}
               />
             </Route>
+            <Route
+              element={
+                <RoleProtectedRoute
+                  roles={["SURGERY_ATTENDANT", "SUPER_ADMIN"]}
+                />
+              }
+            >
+              <Route path="/surgery" element={<SurgeryPage />} />
+            </Route>
 
             {/* Super Admin Routes */}
-            <Route
-              element={<RoleProtectedRoute roles={["SUPER_ADMIN"]} />}
-            >
+            <Route element={<RoleProtectedRoute roles={["SUPER_ADMIN"]} />}>
               <Route path="/users" element={<UsersPage />} />
 
-              <Route
-                path="/users/new"
-                element={<UserDetailPage />}
-              />
+              <Route path="/users/new" element={<UserDetailPage />} />
 
-              <Route
-                path="/users/:id"
-                element={<UserDetailPage />}
-              />
+              <Route path="/users/:id" element={<UserDetailPage />} />
 
-              <Route
-                path="/users/:id/edit"
-                element={<UserDetailPage />}
-              />
+              <Route path="/users/:id/edit" element={<UserDetailPage />} />
 
-              <Route
-                path="/admin/users"
-                element={<UsersPage />}
-              />
+              <Route path="/admin/users" element={<UsersPage />} />
 
-              <Route
-                path="/admin/users/create"
-                element={<UserDetailPage />}
-              />
+              <Route path="/admin/users/create" element={<UserDetailPage />} />
 
               <Route
                 path="/admin/users/:id/edit"
                 element={<UserDetailPage />}
               />
 
-              <Route
-                path="/audit-logs"
-                element={<AuditLogsPage />}
-              />
+              <Route path="/audit-logs" element={<AuditLogsPage />} />
 
-              <Route
-                path="/admin/patients"
-                element={<PatientListPage />}
-              />
+              <Route path="/admin/patients" element={<PatientListPage />} />
 
               <Route
                 path="/admin/patients/:id/edit"
                 element={<PatientDetailPage edit />}
               />
 
-              <Route
-                path="/admin/doctors"
-                element={<DoctorsPage />}
-              />
+              <Route path="/admin/doctors" element={<DoctorsPage />} />
 
               {/* Departments */}
-              <Route
-                path="/departments"
-                element={<DepartmentsPage />}
-              />
+              <Route path="/departments" element={<DepartmentsPage />} />
 
               {/* Services */}
-              <Route
-                path="/services"
-                element={<ServicesPage />}
-              />
+              <Route path="/services" element={<ServicesPage />} />
 
               {/* Registration Fee */}
               <Route
@@ -173,10 +146,7 @@ export function App() {
         />
 
         {/* Fallback */}
-        <Route
-          path="*"
-          element={<Navigate to="/dashboard" replace />}
-        />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
     </BrowserRouter>
   );

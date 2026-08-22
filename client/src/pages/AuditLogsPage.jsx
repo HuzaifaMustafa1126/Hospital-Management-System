@@ -35,13 +35,23 @@ const label = (v) =>
     ?.replaceAll("_", " ")
     .toLowerCase()
     .replace(/\b\w/g, (x) => x.toUpperCase());
-const safe = (data) =>
-  data &&
-  Object.fromEntries(
-    Object.entries(data).filter(
-      ([k]) => !/password|token|secret|hash/i.test(k),
-    ),
-  );
+const description = (log) => {
+  const person = log.user
+    ? `${log.user.firstName} ${log.user.lastName}`
+    : "System";
+  const entity = `${log.entity?.toLowerCase().replaceAll("_", " ") || "record"}${log.entityId ? ` #${log.entityId}` : ""}`;
+  if (log.action === "PATIENT_CREATED")
+    return `${person} registered a new patient (${entity}).`;
+  if (log.action === "REGISTRATION_PAYMENT_CREATED")
+    return `${person} recorded a registration payment for ${entity}.`;
+  if (log.action === "LAB_SERVICE_ADDED")
+    return `${person} added a laboratory service to ${entity}.`;
+  if (log.action === "SURGERY_SERVICE_ADDED")
+    return `${person} added a surgery service to ${entity}.`;
+  if (log.action === "LOGIN") return `${person} signed in.`;
+  if (log.action === "LOGOUT") return `${person} signed out.`;
+  return `${person} ${label(log.action)?.toLowerCase()} ${entity}.`;
+};
 export function AuditLogsPage() {
   const [range, setRange] = useState("30d"),
     [filters, setFilters] = useState({ search: "", action: "", entity: "" }),
@@ -172,7 +182,7 @@ export function AuditLogsPage() {
         <div className="border-b border-slate-100 px-5 py-4">
           <h3 className="font-bold text-slate-900">Activity stream</h3>
           <p className="text-sm text-slate-500">
-            Select an event to inspect its safe event details.
+            Select an event to see a clear summary of what happened.
           </p>
         </div>
         <div className="divide-y divide-slate-100">
@@ -235,6 +245,9 @@ export function AuditLogsPage() {
           <h3 className="mt-1 pr-8 text-2xl font-bold">
             {label(selected.action)}
           </h3>
+          <p className="mt-4 rounded-xl bg-teal-50 p-4 text-sm leading-6 text-teal-900">
+            {description(selected)}
+          </p>
           <dl className="mt-6 space-y-4 text-sm">
             {[
               [
@@ -256,14 +269,6 @@ export function AuditLogsPage() {
               </div>
             ))}
           </dl>
-          {safe(selected.newData) && (
-            <>
-              <h4 className="mt-6 font-bold">Metadata</h4>
-              <pre className="mt-2 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-100">
-                {JSON.stringify(safe(selected.newData), null, 2)}
-              </pre>
-            </>
-          )}
         </aside>
       )}
     </div>

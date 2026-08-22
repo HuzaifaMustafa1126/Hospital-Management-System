@@ -104,9 +104,9 @@ export function DashboardPage() {
       tone: "bg-amber-50 text-amber-700",
     },
     {
-      label: "Inactive Services",
-      value: data.inactiveServices,
-      note: "Currently unavailable",
+      label: "Surgery Services",
+      value: data.surgeryToday,
+      note: "Surgery services added today",
       icon: Activity,
       tone: "bg-slate-100 text-slate-700",
     },

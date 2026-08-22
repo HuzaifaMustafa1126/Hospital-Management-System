@@ -1,15 +1,54 @@
-import mysql from 'mysql2/promise';
-import { randomUUID } from 'node:crypto';
-import { env } from '../config/env.js';
+import mysql from "mysql2/promise";
+import { randomUUID } from "node:crypto";
+import { env } from "../config/env.js";
 
 const roles = [
-  ['SUPER_ADMIN', 'Full system administration access'], ['RECEPTION', 'Reception desk access'],
-  ['LAB_ATTENDANT', 'Laboratory staff access'], ['SURGERY_STAFF', 'Surgery department staff access'],
-  ['BLOOD_BANK_STAFF', 'Blood bank staff access'], ['BILLING_STAFF', 'Billing department staff access'],
+  ["SUPER_ADMIN", "Full system administration access"],
+  ["RECEPTION", "Reception desk access"],
+  ["LAB_ATTENDANT", "Laboratory staff access"],
+  [
+    "SURGERY_ATTENDANT",
+    "Staff member responsible for managing surgery-related patient services.",
+  ],
+  ["BLOOD_BANK_STAFF", "Blood bank staff access"],
+  ["BILLING_STAFF", "Billing department staff access"],
 ];
-const permissions = ['PATIENT_CREATE', 'PATIENT_VIEW', 'PATIENT_UPDATE', 'PATIENT_DELETE', 'PATIENT_SEARCH', 'LAB_SERVICE_ADD', 'SURGERY_SERVICE_ADD', 'BLOOD_SERVICE_ADD', 'BILL_CREATE', 'BILL_VIEW', 'BILL_PRINT', 'USER_CREATE', 'USER_VIEW', 'USER_UPDATE', 'USER_DELETE', 'AUDIT_LOG_VIEW', 'REGISTRATION_FEE_VIEW', 'REGISTRATION_FEE_UPDATE', 'REGISTRATION_FEE_COLLECT', 'REGISTRATION_FEE_RECEIPT_VIEW', 'REGISTRATION_FEE_RECEIPT_PRINT'];
-const receptionPermissions = ['PATIENT_CREATE', 'PATIENT_VIEW', 'PATIENT_SEARCH', 'REGISTRATION_FEE_VIEW', 'REGISTRATION_FEE_COLLECT', 'REGISTRATION_FEE_RECEIPT_VIEW', 'REGISTRATION_FEE_RECEIPT_PRINT'];
-const departmentPatientPermissions = ['PATIENT_VIEW', 'PATIENT_SEARCH'];
+const permissions = [
+  "PATIENT_CREATE",
+  "PATIENT_VIEW",
+  "PATIENT_UPDATE",
+  "PATIENT_DELETE",
+  "PATIENT_SEARCH",
+  "LAB_SERVICE_ADD",
+  "SURGERY_VIEW",
+  "SURGERY_SERVICE_VIEW",
+  "SURGERY_SERVICE_ADD",
+  "SURGERY_PATIENT_SEARCH",
+  "BLOOD_SERVICE_ADD",
+  "BILL_CREATE",
+  "BILL_VIEW",
+  "BILL_PRINT",
+  "USER_CREATE",
+  "USER_VIEW",
+  "USER_UPDATE",
+  "USER_DELETE",
+  "AUDIT_LOG_VIEW",
+  "REGISTRATION_FEE_VIEW",
+  "REGISTRATION_FEE_UPDATE",
+  "REGISTRATION_FEE_COLLECT",
+  "REGISTRATION_FEE_RECEIPT_VIEW",
+  "REGISTRATION_FEE_RECEIPT_PRINT",
+];
+const receptionPermissions = [
+  "PATIENT_CREATE",
+  "PATIENT_VIEW",
+  "PATIENT_SEARCH",
+  "REGISTRATION_FEE_VIEW",
+  "REGISTRATION_FEE_COLLECT",
+  "REGISTRATION_FEE_RECEIPT_VIEW",
+  "REGISTRATION_FEE_RECEIPT_PRINT",
+];
+const departmentPatientPermissions = ["PATIENT_VIEW", "PATIENT_SEARCH"];
 
 const tableStatements = [
   `CREATE TABLE IF NOT EXISTS users (id VARCHAR(191) NOT NULL, first_name VARCHAR(191) NOT NULL, last_name VARCHAR(191) NOT NULL, email VARCHAR(191) NOT NULL, phone VARCHAR(191) NULL, password_hash VARCHAR(191) NOT NULL, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), updated_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3), PRIMARY KEY (id), UNIQUE KEY users_email_key (email), KEY users_is_active_idx (is_active)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -28,50 +67,183 @@ const tableStatements = [
   `CREATE TABLE IF NOT EXISTS patient_services (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_id BIGINT UNSIGNED NOT NULL, service_id BIGINT UNSIGNED NOT NULL, quantity INT UNSIGNED NOT NULL, unit_price DECIMAL(10,2) NOT NULL, total_amount DECIMAL(12,2) NOT NULL, notes VARCHAR(1000) NULL, status ENUM('ADDED','IN_PROGRESS','COMPLETED','CANCELLED') NOT NULL DEFAULT 'ADDED', added_by VARCHAR(191) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), KEY idx_patient_services_patient_created (patient_id, created_at), KEY idx_patient_services_service (service_id), CONSTRAINT patient_services_patient_fkey FOREIGN KEY (patient_id) REFERENCES patients(id), CONSTRAINT patient_services_service_fkey FOREIGN KEY (service_id) REFERENCES services(id), CONSTRAINT patient_services_added_by_fkey FOREIGN KEY (added_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 ];
 
-const databaseConfig = { host: env.DB_HOST, port: env.DB_PORT, user: env.DB_USER, password: env.DB_PASSWORD };
+const databaseConfig = {
+  host: env.DB_HOST,
+  port: env.DB_PORT,
+  user: env.DB_USER,
+  password: env.DB_PASSWORD,
+};
 
 async function seedAccessControl(connection) {
-  for (const [name, description] of roles) await connection.execute('INSERT INTO roles (id, name, description) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE description = VALUES(description)', [randomUUID(), name, description]);
-  for (const name of permissions) await connection.execute('INSERT INTO permissions (id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)', [randomUUID(), name]);
-  const [roleRows] = await connection.execute('SELECT id, name FROM roles');
-  const [permissionRows] = await connection.execute('SELECT id, name FROM permissions');
-  const roleIds = Object.fromEntries(roleRows.map(({ id, name }) => [name, id]));
-  const permissionIds = Object.fromEntries(permissionRows.map(({ id, name }) => [name, id]));
-  for (const name of permissions) await connection.execute('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)', [roleIds.SUPER_ADMIN, permissionIds[name]]);
-  for (const name of receptionPermissions) await connection.execute('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)', [roleIds.RECEPTION, permissionIds[name]]);
-  for (const role of ['LAB_ATTENDANT', 'SURGERY_STAFF', 'BLOOD_BANK_STAFF', 'BILLING_STAFF']) for (const name of departmentPatientPermissions) await connection.execute('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)', [roleIds[role], permissionIds[name]]);
-  await connection.execute('INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)', [roleIds.LAB_ATTENDANT, permissionIds.LAB_SERVICE_ADD]);
-  await connection.execute("DELETE rp FROM role_permissions rp JOIN roles r ON r.id = rp.role_id JOIN permissions p ON p.id = rp.permission_id WHERE p.name = 'PATIENT_UPDATE' AND r.name <> 'SUPER_ADMIN'");
-  await connection.execute("INSERT INTO settings (setting_key, setting_value) VALUES ('REGISTRATION_FEE', '500') ON DUPLICATE KEY UPDATE setting_key = VALUES(setting_key)");
-  const doctors = [['Ahmed', 'Khan', 'General Medicine', 'DEV-DR-001'], ['Ali', 'Raza', 'Cardiology', 'DEV-DR-002'], ['Hassan', 'Malik', 'Surgery', 'DEV-DR-003'], ['Usman', 'Tariq', 'Pathology', 'DEV-DR-004']];
-  for (const [firstName, lastName, specialization, licenseNumber] of doctors) await connection.execute('INSERT INTO doctors (first_name, last_name, specialization, license_number) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), specialization = VALUES(specialization)', [firstName, lastName, specialization, licenseNumber]);
-  const departments = [['Laboratory', 'LAB', 'Laboratory diagnostic services'], ['Radiology', 'RAD', 'Diagnostic imaging services'], ['Surgery', 'SUR', 'Surgical services'], ['Blood Bank', 'BB', 'Blood bank services'], ['Pharmacy', 'PHARM', 'Pharmacy services'], ['Other Services', 'OTHER', 'Other hospital services']];
-  for (const [name, code, description] of departments) await connection.execute('INSERT INTO departments (name, code, description) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE id = id', [name, code, description]);
-  const [departmentRows] = await connection.execute('SELECT id, code FROM departments'); const departmentIds = Object.fromEntries(departmentRows.map(({ id, code }) => [code, id]));
-  const services = [['LAB', 'Complete Blood Count', 'LAB-CBC', 'Complete blood count test', 800], ['LAB', 'Blood Sugar', 'LAB-BS', 'Blood sugar test', 300], ['LAB', 'Liver Function Test', 'LAB-LFT', 'Liver function test', 1200], ['LAB', 'Renal Function Test', 'LAB-RFT', 'Renal function test', 1200], ['LAB', 'Urine Routine Examination', 'LAB-URINE', 'Urine routine examination', 500], ['RAD', 'X-Ray', 'RAD-XRAY', 'X-ray imaging service', 1500], ['RAD', 'Ultrasound', 'RAD-US', 'Ultrasound imaging service', 2500], ['SUR', 'Minor Surgery', 'SUR-MINOR', 'Minor surgical procedure', 15000], ['SUR', 'Major Surgery', 'SUR-MAJOR', 'Major surgical procedure', 50000], ['BB', 'Blood Group Test', 'BB-GROUP', 'Blood group test', 500], ['BB', 'Cross Matching', 'BB-CROSS', 'Blood cross matching', 1000]];
-  for (const [departmentCode, name, code, description, price] of services) await connection.execute('INSERT INTO services (department_id, name, code, description, price) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id', [departmentIds[departmentCode], name, code, description, price]);
+  for (const [name, description] of roles)
+    await connection.execute(
+      "INSERT INTO roles (id, name, description) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE description = VALUES(description)",
+      [randomUUID(), name, description],
+    );
+  for (const name of permissions)
+    await connection.execute(
+      "INSERT INTO permissions (id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)",
+      [randomUUID(), name],
+    );
+  const [roleRows] = await connection.execute("SELECT id, name FROM roles");
+  const [permissionRows] = await connection.execute(
+    "SELECT id, name FROM permissions",
+  );
+  const roleIds = Object.fromEntries(
+    roleRows.map(({ id, name }) => [name, id]),
+  );
+  const permissionIds = Object.fromEntries(
+    permissionRows.map(({ id, name }) => [name, id]),
+  );
+  for (const name of permissions)
+    await connection.execute(
+      "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+      [roleIds.SUPER_ADMIN, permissionIds[name]],
+    );
+  for (const name of receptionPermissions)
+    await connection.execute(
+      "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+      [roleIds.RECEPTION, permissionIds[name]],
+    );
+  for (const role of [
+    "LAB_ATTENDANT",
+    "SURGERY_ATTENDANT",
+    "BLOOD_BANK_STAFF",
+    "BILLING_STAFF",
+  ])
+    for (const name of departmentPatientPermissions)
+      await connection.execute(
+        "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+        [roleIds[role], permissionIds[name]],
+      );
+  await connection.execute(
+    "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+    [roleIds.LAB_ATTENDANT, permissionIds.LAB_SERVICE_ADD],
+  );
+  for (const name of [
+    "SURGERY_VIEW",
+    "SURGERY_SERVICE_VIEW",
+    "SURGERY_SERVICE_ADD",
+    "SURGERY_PATIENT_SEARCH",
+  ])
+    await connection.execute(
+      "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+      [roleIds.SURGERY_ATTENDANT, permissionIds[name]],
+    );
+  await connection.execute(
+    "DELETE rp FROM role_permissions rp JOIN roles r ON r.id = rp.role_id JOIN permissions p ON p.id = rp.permission_id WHERE p.name = 'PATIENT_UPDATE' AND r.name <> 'SUPER_ADMIN'",
+  );
+  await connection.execute(
+    "INSERT INTO settings (setting_key, setting_value) VALUES ('REGISTRATION_FEE', '500') ON DUPLICATE KEY UPDATE setting_key = VALUES(setting_key)",
+  );
+  const doctors = [
+    ["Ahmed", "Khan", "General Medicine", "DEV-DR-001"],
+    ["Ali", "Raza", "Cardiology", "DEV-DR-002"],
+    ["Hassan", "Malik", "Surgery", "DEV-DR-003"],
+    ["Usman", "Tariq", "Pathology", "DEV-DR-004"],
+  ];
+  for (const [firstName, lastName, specialization, licenseNumber] of doctors)
+    await connection.execute(
+      "INSERT INTO doctors (first_name, last_name, specialization, license_number) VALUES (?, ?, ?, ?) ON DUPLICATE KEY UPDATE first_name = VALUES(first_name), last_name = VALUES(last_name), specialization = VALUES(specialization)",
+      [firstName, lastName, specialization, licenseNumber],
+    );
+  const departments = [
+    ["Laboratory", "LAB", "Laboratory diagnostic services"],
+    ["Radiology", "RAD", "Diagnostic imaging services"],
+    ["Surgery", "SUR", "Surgical services"],
+    ["Blood Bank", "BB", "Blood bank services"],
+    ["Pharmacy", "PHARM", "Pharmacy services"],
+    ["Other Services", "OTHER", "Other hospital services"],
+  ];
+  for (const [name, code, description] of departments)
+    await connection.execute(
+      "INSERT INTO departments (name, code, description) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE id = id",
+      [name, code, description],
+    );
+  const [departmentRows] = await connection.execute(
+    "SELECT id, code FROM departments",
+  );
+  const departmentIds = Object.fromEntries(
+    departmentRows.map(({ id, code }) => [code, id]),
+  );
+  const services = [
+    [
+      "LAB",
+      "Complete Blood Count",
+      "LAB-CBC",
+      "Complete blood count test",
+      800,
+    ],
+    ["LAB", "Blood Sugar", "LAB-BS", "Blood sugar test", 300],
+    ["LAB", "Liver Function Test", "LAB-LFT", "Liver function test", 1200],
+    ["LAB", "Renal Function Test", "LAB-RFT", "Renal function test", 1200],
+    [
+      "LAB",
+      "Urine Routine Examination",
+      "LAB-URINE",
+      "Urine routine examination",
+      500,
+    ],
+    ["RAD", "X-Ray", "RAD-XRAY", "X-ray imaging service", 1500],
+    ["RAD", "Ultrasound", "RAD-US", "Ultrasound imaging service", 2500],
+    ["SUR", "Minor Surgery", "SUR-MINOR", "Minor surgical procedure", 15000],
+    ["SUR", "Major Surgery", "SUR-MAJOR", "Major surgical procedure", 50000],
+    ["BB", "Blood Group Test", "BB-GROUP", "Blood group test", 500],
+    ["BB", "Cross Matching", "BB-CROSS", "Blood cross matching", 1000],
+  ];
+  for (const [departmentCode, name, code, description, price] of services)
+    await connection.execute(
+      "INSERT INTO services (department_id, name, code, description, price) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE id = id",
+      [departmentIds[departmentCode], name, code, description, price],
+    );
 }
 
 export async function initializeDatabase({ log = false } = {}) {
-  if (log) console.log('Initializing Hospital Management database...');
+  if (log) console.log("Initializing Hospital Management database...");
   const bootstrap = await mysql.createConnection(databaseConfig);
   try {
-    if (log) console.log('MySQL server connected.');
-    await bootstrap.query(`CREATE DATABASE IF NOT EXISTS ${mysql.escapeId(env.DB_NAME)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`);
-  } finally { await bootstrap.end(); }
+    if (log) console.log("MySQL server connected.");
+    await bootstrap.query(
+      `CREATE DATABASE IF NOT EXISTS ${mysql.escapeId(env.DB_NAME)} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci`,
+    );
+  } finally {
+    await bootstrap.end();
+  }
   if (log) console.log(`Database verified: ${env.DB_NAME}`);
-  const connection = await mysql.createConnection({ ...databaseConfig, database: env.DB_NAME });
+  const connection = await mysql.createConnection({
+    ...databaseConfig,
+    database: env.DB_NAME,
+  });
   try {
-    if (log) console.log('Creating tables...');
+    if (log) console.log("Creating tables...");
     for (const statement of tableStatements) await connection.query(statement);
-    await connection.query("ALTER TABLE permissions MODIFY name VARCHAR(191) NOT NULL");
-    const [feeTypeColumn] = await connection.query("SHOW COLUMNS FROM registration_payments LIKE 'fee_type'");
-    if (!feeTypeColumn.length) await connection.query("ALTER TABLE registration_payments ADD COLUMN fee_type ENUM('FREE','DISCOUNTED') NOT NULL DEFAULT 'DISCOUNTED' AFTER amount");
-    if (log) console.log('Tables verified.');
+    await connection.query(
+      "ALTER TABLE permissions MODIFY name VARCHAR(191) NOT NULL",
+    );
+    const [feeTypeColumn] = await connection.query(
+      "SHOW COLUMNS FROM registration_payments LIKE 'fee_type'",
+    );
+    if (!feeTypeColumn.length)
+      await connection.query(
+        "ALTER TABLE registration_payments ADD COLUMN fee_type ENUM('FREE','DISCOUNTED') NOT NULL DEFAULT 'DISCOUNTED' AFTER amount",
+      );
+    if (log) console.log("Tables verified.");
     await seedAccessControl(connection);
-    if (log) { console.log('Roles verified.'); console.log('Permissions verified.'); console.log('Database initialization completed successfully.'); }
-  } finally { await connection.end(); }
+    if (log) {
+      console.log("Roles verified.");
+      console.log("Permissions verified.");
+      console.log("Database initialization completed successfully.");
+    }
+  } finally {
+    await connection.end();
+  }
 }
 
-const isDirectExecution = process.argv[1] && new URL(`file://${process.argv[1]}`).href === import.meta.url;
-if (isDirectExecution) initializeDatabase({ log: true }).catch((error) => { console.error('Database initialization failed:', error.message); process.exitCode = 1; });
+const isDirectExecution =
+  process.argv[1] &&
+  new URL(`file://${process.argv[1]}`).href === import.meta.url;
+if (isDirectExecution)
+  initializeDatabase({ log: true }).catch((error) => {
+    console.error("Database initialization failed:", error.message);
+    process.exitCode = 1;
+  });
