@@ -46,10 +46,17 @@ export const dashboardService = {
         "SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS total FROM patients WHERE is_active = TRUE AND created_at >= CURDATE() - INTERVAL 6 DAY GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d') ORDER BY date",
       ),
       includeFinancial ? database.execute(
-        "SELECT DATE_FORMAT(paid_at, '%Y-%m-%d') AS date, COALESCE(SUM(amount), 0) AS total FROM registration_payments WHERE payment_status = 'PAID' AND paid_at >= CURDATE() - INTERVAL 6 DAY GROUP BY DATE_FORMAT(paid_at, '%Y-%m-%d') ORDER BY date",
+        "SELECT date,SUM(total) total FROM (SELECT DATE_FORMAT(paid_at,'%Y-%m-%d') date,SUM(amount) total FROM registration_payments WHERE payment_status='PAID' AND paid_at>=CURDATE()-INTERVAL 6 DAY GROUP BY DATE_FORMAT(paid_at,'%Y-%m-%d') UNION ALL SELECT DATE_FORMAT(paid_at,'%Y-%m-%d'),SUM(amount) FROM bill_payments WHERE paid_at>=CURDATE()-INTERVAL 6 DAY GROUP BY DATE_FORMAT(paid_at,'%Y-%m-%d')) collected GROUP BY date ORDER BY date",
       ) : Promise.resolve([[]]),
       includeFinancial ? database.execute(
-        "SELECT COALESCE(SUM(CASE WHEN payment_status='PAID' AND DATE(paid_at)=CURDATE() THEN amount ELSE 0 END),0) AS todayRevenue, SUM(payment_status='PENDING') AS pendingPayments, COALESCE(SUM(CASE WHEN payment_status='PAID' THEN amount ELSE 0 END),0) AS registrationRevenue FROM registration_payments",
+        `SELECT
+          (SELECT COALESCE(SUM(amount),0) FROM registration_payments WHERE payment_status='PAID' AND DATE(paid_at)=CURDATE())+(SELECT COALESCE(SUM(amount),0) FROM bill_payments WHERE DATE(paid_at)=CURDATE()) AS todayRevenue,
+          (SELECT COALESCE(SUM(total_amount),0) FROM visit_bills WHERE DATE(created_at)=CURDATE()) AS todayBilled,
+          (SELECT COALESCE(SUM(balance_due),0) FROM visit_bills) AS outstandingBalance,
+          (SELECT COUNT(*) FROM visit_bills WHERE payment_status='PAID') AS paidBills,
+          (SELECT COUNT(*) FROM visit_bills WHERE payment_status='PARTIALLY_PAID') AS partiallyPaidBills,
+          (SELECT COUNT(*) FROM visit_bills WHERE payment_status='UNPAID') AS unpaidBills,
+          (SELECT COALESCE(SUM(amount),0) FROM registration_payments WHERE payment_status='PAID')+(SELECT COALESCE(SUM(amount),0) FROM bill_payments) AS collectedRevenue`,
       ) : Promise.resolve([[]]),
       database.execute(
         "SELECT action, entity, entity_id AS entityId, created_at AS createdAt FROM audit_logs ORDER BY created_at DESC LIMIT 5",
@@ -107,8 +114,12 @@ export const dashboardService = {
     };
     if (includeFinancial) result.financial = {
       todayRevenue: Number(financialTotals[0]?.todayRevenue || 0),
-      pendingPayments: Number(financialTotals[0]?.pendingPayments || 0),
-      registrationRevenue: Number(financialTotals[0]?.registrationRevenue || 0),
+      todayBilled: Number(financialTotals[0]?.todayBilled || 0),
+      outstandingBalance: Number(financialTotals[0]?.outstandingBalance || 0),
+      paidBills: Number(financialTotals[0]?.paidBills || 0),
+      partiallyPaidBills: Number(financialTotals[0]?.partiallyPaidBills || 0),
+      unpaidBills: Number(financialTotals[0]?.unpaidBills || 0),
+      collectedRevenue: Number(financialTotals[0]?.collectedRevenue || 0),
       revenueTrend: days.map((date) => ({ date, revenue: revenueTotals[date] || 0 })),
     };
     return result;

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, Printer } from "lucide-react";
+import { ArrowLeft, CalendarDays, CreditCard } from "lucide-react";
 import { patientService } from "../services/patient.service";
 export function VisitDetailPage() {
   const { id } = useParams();
@@ -75,7 +75,7 @@ export function VisitDetailPage() {
           <div className="mt-2 flex justify-between text-sm"><span>Services total</span><b>PKR {visit.servicesTotal}</b></div>
           <div className="mt-3 flex justify-between text-lg"><b>Total</b><b>PKR {visit.total}</b></div>
         </div>
-        <button type="button" onClick={() => window.print()} className="hms-button-primary mt-6 print:hidden"><Printer size={16} /> Print Bill</button>
+        {visit.billId && <div className="mt-6 rounded-xl border border-slate-200 p-4"><h3 className="font-bold">Billing Summary</h3><div className="mt-3 grid gap-3 text-sm sm:grid-cols-3"><p>Gross Total<br/><b>PKR {visit.total}</b></p><p>Paid<br/><b>PKR {visit.amountPaid}</b></p><p>Balance<br/><b>PKR {visit.balanceDue}</b></p></div><p className="mt-3 text-sm font-bold text-teal-700">{visit.paymentStatus?.replaceAll("_"," ")}</p><Link className="hms-button-primary mt-4" to={`/billing/${visit.billId}`}><CreditCard size={16}/> View Bill</Link></div>}
       </section>
     </div>
   );

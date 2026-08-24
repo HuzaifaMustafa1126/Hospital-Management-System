@@ -1,7 +1,8 @@
 import { database } from "../db/database.js";
 import { AppError } from "../utils/app-error.js";
 import { randomUUID } from "node:crypto";
-const select = `SELECT v.id, v.patient_id AS patientId, v.visit_number AS visitNumber, v.visit_date AS visitDate, v.status, v.created_at AS createdAt, v.updated_at AS updatedAt, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, p.patient_number AS patientNumber, p.first_name AS patientFirstName, p.last_name AS patientLastName, p.cnic AS patientCnic, p.phone AS patientPhone, COALESCE(rp.amount, 0) AS visitFee, rp.fee_type AS feeType, COALESCE(SUM(ps.total_amount), 0) AS servicesTotal, COUNT(ps.id) AS servicesCount FROM patient_visits v JOIN patients p ON p.id=v.patient_id LEFT JOIN doctors d ON d.id=v.doctor_id LEFT JOIN registration_payments rp ON rp.visit_id=v.id LEFT JOIN patient_services ps ON ps.visit_id=v.id`;
+import { recalculateVisitBill } from "./visit-billing.service.js";
+const select = `SELECT v.id, v.patient_id AS patientId, v.visit_number AS visitNumber, v.visit_date AS visitDate, v.status, v.created_at AS createdAt, v.updated_at AS updatedAt, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, p.patient_number AS patientNumber, p.first_name AS patientFirstName, p.last_name AS patientLastName, p.cnic AS patientCnic, p.phone AS patientPhone, COALESCE(rp.amount, 0) AS visitFee, rp.fee_type AS feeType, COALESCE(SUM(ps.total_amount), 0) AS servicesTotal, COUNT(ps.id) AS servicesCount,b.id AS billId,b.bill_number AS billNumber,b.amount_paid AS amountPaid,b.balance_due AS balanceDue,b.payment_status AS paymentStatus FROM patient_visits v JOIN patients p ON p.id=v.patient_id LEFT JOIN doctors d ON d.id=v.doctor_id LEFT JOIN registration_payments rp ON rp.visit_id=v.id LEFT JOIN patient_services ps ON ps.visit_id=v.id LEFT JOIN visit_bills b ON b.visit_id=v.id`;
 const present = (row) => ({
   ...row,
   doctorName: row.doctorFirstName
@@ -12,17 +13,19 @@ const present = (row) => ({
   servicesTotal: Number(row.servicesTotal),
   servicesCount: Number(row.servicesCount),
   total: Number(row.visitFee) + Number(row.servicesTotal),
+  amountPaid: Number(row.amountPaid || 0),
+  balanceDue: Number(row.balanceDue || 0),
 });
 export const visitService = {
   async list(patientId) {
     const [rows] = await database.execute(
-      `${select} WHERE v.patient_id=? GROUP BY v.id, rp.id ORDER BY v.visit_number DESC`,
+      `${select} WHERE v.patient_id=? GROUP BY v.id, rp.id,b.id ORDER BY v.visit_number DESC`,
       [patientId],
     );
     return rows.map(present);
   },
   async get(id) {
-    const [rows] = await database.execute(`${select} WHERE v.id=? GROUP BY v.id, rp.id`, [id]);
+    const [rows] = await database.execute(`${select} WHERE v.id=? GROUP BY v.id, rp.id,b.id`, [id]);
     if (!rows.length) throw new AppError(404, "Visit not found.");
     const visit = present(rows[0]);
     const [services] = await database.execute(
@@ -47,12 +50,12 @@ export const visitService = {
     try {
       await connection.beginTransaction();
       const [patients] = await connection.execute(
-        "SELECT id FROM patients WHERE id=? AND is_active=TRUE FOR UPDATE",
+        "SELECT id, patient_number AS patientNumber, first_name AS firstName, last_name AS lastName FROM patients WHERE id=? AND is_active=TRUE FOR UPDATE",
         [patientId],
       );
       if (!patients.length) throw new AppError(404, "Patient not found.");
       const [doctors] = await connection.execute(
-        "SELECT id FROM doctors WHERE id=? AND is_active=TRUE",
+        "SELECT id, first_name AS firstName, last_name AS lastName FROM doctors WHERE id=? AND is_active=TRUE",
         [data.doctorId],
       );
       if (!doctors.length) throw new AppError(400, "Selected doctor was not found or is inactive.");
@@ -112,17 +115,23 @@ export const visitService = {
           [randomUUID(), actorId, String(patientService.insertId), JSON.stringify({ visitId: result.insertId, patientId: Number(patientId), serviceId: service.id, unitPrice: price, totalAmount: price })],
         );
       }
-      const servicesTotal = services.reduce((sum, service) => sum + Number(service.price), 0);
-      const [bill] = await connection.execute(
-        "INSERT INTO visit_bills (visit_id, patient_id, visit_fee, services_total, total_amount, created_by) VALUES (?, ?, ?, ?, ?, ?)",
-        [result.insertId, patientId, visitFee, servicesTotal, visitFee + servicesTotal, actorId],
+      const bill = await recalculateVisitBill(connection, result.insertId, actorId);
+      const [actors] = await connection.execute(
+        "SELECT first_name AS firstName, last_name AS lastName FROM users WHERE id=?",
+        [actorId],
       );
+      const actorName = actors.length
+        ? `${actors[0].firstName} ${actors[0].lastName}`
+        : "System";
+      const patientName = `${patients[0].firstName} ${patients[0].lastName}`;
+      const doctorName = `Dr. ${doctors[0].firstName} ${doctors[0].lastName}`;
       await connection.execute(
-        "INSERT INTO audit_logs (id,user_id,action,entity,entity_id,new_data) VALUES (?,?,'PATIENT_VISIT_CREATED','PATIENT_VISIT',?,?)",
+        "INSERT INTO audit_logs (id,user_id,action,entity,entity_id,details,new_data) VALUES (?,?,'PATIENT_VISIT_CREATED','PATIENT_VISIT',?,?,?)",
         [
           randomUUID(),
           actorId,
           String(result.insertId),
+          `${actorName} created Visit #${visitNumber} for ${patientName} (${patients[0].patientNumber}) with ${doctorName}.`,
           JSON.stringify({ patientId: Number(patientId), visitNumber, doctorId: data.doctorId, visitFee, feeType: data.feeType, serviceIds: uniqueServiceIds }),
         ],
       );
@@ -132,7 +141,7 @@ export const visitService = {
       );
       await connection.execute(
         "INSERT INTO audit_logs (id,user_id,action,entity,entity_id,new_data) VALUES (?,?,'VISIT_BILL_CREATED','VISIT_BILL',?,?)",
-        [randomUUID(), actorId, String(bill.insertId), JSON.stringify({ visitId: result.insertId, patientId: Number(patientId), visitFee, servicesTotal, totalAmount: visitFee + servicesTotal })],
+        [randomUUID(), actorId, String(bill.id), JSON.stringify({ visitId: result.insertId, patientId: Number(patientId), billNumber: bill.billNumber, grossTotal: bill.grossTotal })],
       );
       await connection.commit();
       return this.get(result.insertId);

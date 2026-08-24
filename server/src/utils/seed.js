@@ -17,6 +17,8 @@ const permissions = [
   "PATIENT_UPDATE",
   "PATIENT_DELETE",
   "PATIENT_SEARCH",
+  "VISIT_CREATE",
+  "VISIT_VIEW",
   "LAB_SERVICE_ADD",
   "SURGERY_SERVICE_ADD",
   "SURGERY_VIEW",
@@ -29,6 +31,8 @@ const permissions = [
   "BLOOD_BANK_SERVICE_ADD",
   "BILL_CREATE",
   "BILL_VIEW",
+  "PAYMENT_CREATE",
+  "PAYMENT_VIEW",
   "BILL_PRINT",
   "USER_CREATE",
   "USER_VIEW",
@@ -46,10 +50,15 @@ const receptionPermissions = [
   "PATIENT_CREATE",
   "PATIENT_VIEW",
   "PATIENT_SEARCH",
+  "VISIT_CREATE",
+  "VISIT_VIEW",
   "REGISTRATION_FEE_VIEW",
   "REGISTRATION_FEE_COLLECT",
   "REGISTRATION_FEE_RECEIPT_VIEW",
   "REGISTRATION_FEE_RECEIPT_PRINT",
+  "BILL_VIEW",
+  "PAYMENT_CREATE",
+  "PAYMENT_VIEW",
 ];
 const departmentPatientPermissions = ["PATIENT_VIEW", "PATIENT_SEARCH"];
 const developmentUsers = [

@@ -1,6 +1,7 @@
 import { database } from "../db/database.js";
 import { AppError } from "../utils/app-error.js";
 import { randomUUID } from "node:crypto";
+import { recalculateVisitBill } from "./visit-billing.service.js";
 
 const select = `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.father_name AS fatherName, p.cnic, p.phone, p.address, p.registration_locked AS registrationLocked, p.is_active AS isActive, p.created_at AS createdAt, p.updated_at AS updatedAt, d.id AS doctorId, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, d.specialization AS doctorSpecialization, u.id AS createdById, u.first_name AS createdByFirstName, u.last_name AS createdByLastName FROM patients p JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = p.created_by`;
 const present = (row) =>
@@ -220,6 +221,7 @@ export const patientService = {
         [paymentResult.insertId],
       );
       const payment = presentPayment(paymentRows[0]);
+      await recalculateVisitBill(connection, visitResult.insertId, actorId);
       const [actors] = await connection.execute("SELECT CONCAT(first_name,' ',last_name) AS name FROM users WHERE id=?", [actorId]);
       const actorName = actors[0]?.name || "System";
       const patientName = `${patient.firstName} ${patient.lastName}`;

@@ -30,6 +30,8 @@ import { UsersPage } from "./pages/UsersPage";
 import { BloodBankPage } from "./pages/BloodBankPage";
 import { BloodBankPatientsPage } from "./pages/BloodBankPatientsPage";
 import { BloodBankPatientPage } from "./pages/BloodBankPatientPage";
+import { BillingPage } from "./pages/BillingPage";
+import { BillDetailPage } from "./pages/BillDetailPage";
 
 export function App() {
   return (
@@ -45,6 +47,10 @@ export function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
 
             {/* Patient Routes */}
+            <Route element={<PermissionProtectedRoute permissions={["BILL_VIEW"]} />}>
+              <Route path="/billing" element={<BillingPage />} />
+              <Route path="/billing/:id" element={<BillDetailPage />} />
+            </Route>
             <Route
               element={
                 <PermissionProtectedRoute permissions={["PATIENT_VIEW"]} />
@@ -52,8 +58,12 @@ export function App() {
             >
               <Route path="/patients" element={<PatientListPage />} />
               <Route path="/patients/:id" element={<PatientDetailPage />} />
-              <Route path="/visits/:id" element={<VisitDetailPage />} />
-              <Route path="/patients/:id/visits/new" element={<NewVisitPage />} />
+              <Route element={<PermissionProtectedRoute permissions={["VISIT_VIEW"]} />}>
+                <Route path="/visits/:id" element={<VisitDetailPage />} />
+              </Route>
+              <Route element={<PermissionProtectedRoute permissions={["VISIT_CREATE"]} />}>
+                <Route path="/patients/:id/visits/new" element={<NewVisitPage />} />
+              </Route>
 
               <Route path="/reception/patients" element={<PatientListPage />} />
 

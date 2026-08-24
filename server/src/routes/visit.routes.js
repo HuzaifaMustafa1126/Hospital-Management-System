@@ -9,14 +9,18 @@ export const visitRouter = Router();
 visitRouter.use(authenticate);
 visitRouter.get(
   "/:id",
-  requirePermission("PATIENT_VIEW"),
+  requirePermission("VISIT_VIEW"),
   asyncHandler(visitController.get),
 );
 export const patientVisitRouter = Router();
-patientVisitRouter.use(authenticate, requirePermission("PATIENT_VIEW"));
-patientVisitRouter.get("/:id/visits", asyncHandler(visitController.list));
+patientVisitRouter.use(authenticate);
+patientVisitRouter.get(
+  "/:id/visits",
+  requirePermission("VISIT_VIEW"),
+  asyncHandler(visitController.list),
+);
 patientVisitRouter.post(
   "/:id/visits",
-  requirePermission("PATIENT_CREATE", "REGISTRATION_FEE_COLLECT"),
+  requirePermission("VISIT_CREATE", "REGISTRATION_FEE_COLLECT"),
   asyncHandler(visitController.create),
 );

@@ -1,0 +1,5 @@
+import { Router } from "express";
+import { billingController } from "../controllers/billing.controller.js";
+import { authenticate,requirePermission } from "../middleware/auth.middleware.js";
+import { asyncHandler } from "../utils/async-handler.js";
+export const billingRouter=Router();billingRouter.use(authenticate);billingRouter.get("/",requirePermission("BILL_VIEW"),asyncHandler(billingController.list));billingRouter.get("/visit/:visitId",requirePermission("BILL_VIEW"),asyncHandler(billingController.byVisit));billingRouter.get("/:id",requirePermission("BILL_VIEW"),asyncHandler(billingController.get));billingRouter.post("/:id/payments",requirePermission("BILL_VIEW","PAYMENT_CREATE"),asyncHandler(billingController.addPayment));

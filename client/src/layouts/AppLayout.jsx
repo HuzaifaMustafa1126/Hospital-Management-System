@@ -71,6 +71,7 @@ export function AppLayout() {
             "FINANCE",
             [
               ["Revenue", "/revenue", Banknote],
+              ["Billing", "/billing", WalletCards],
             [
               "Registration Fees",
               "/admin/settings/registration-fee",
@@ -113,6 +114,7 @@ export function AppLayout() {
                 ["Patients", "/reception/patients", Users],
                 ["Register Patient", "/reception/patients/register", UserPlus],
                 ["Patient Search", "/reception/patients/search", Search],
+                ["Billing", "/billing", WalletCards],
               ],
             ],
           ];

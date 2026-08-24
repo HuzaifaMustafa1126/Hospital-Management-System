@@ -41,7 +41,7 @@ export const auditService = {
     if (search) { clauses.push("(a.action LIKE ? OR a.entity LIKE ? OR a.entity_id LIKE ? OR a.details LIKE ? OR CONCAT(COALESCE(u.first_name, ''), ' ', COALESCE(u.last_name, '')) LIKE ?)"); const term = `%${search}%`; params.push(term, term, term, term, term); }
     const where = clauses.join(' AND ');
     const [[totals], [rows]] = await Promise.all([
-      database.execute(`SELECT COUNT(*) total, SUM(DATE(a.created_at) = CURDATE()) today, SUM(a.action IN ('LOGIN','LOGOUT')) login, SUM(a.entity = 'PATIENT') patient, SUM(a.entity IN ('SERVICE','PATIENT_SERVICE')) service FROM audit_logs a WHERE ${where}`, params),
+      database.execute(`SELECT COUNT(*) total, SUM(DATE(a.created_at) = CURDATE()) today, SUM(a.action IN ('LOGIN','LOGOUT')) login, SUM(a.entity = 'PATIENT') patient, SUM(a.entity IN ('SERVICE','PATIENT_SERVICE')) service FROM audit_logs a LEFT JOIN users u ON u.id=a.user_id WHERE ${where}`, params),
       database.execute(`SELECT a.id, a.action, a.entity, a.entity_id AS entityId, a.details,
       a.ip_address AS ipAddress,
       a.user_agent AS userAgent, a.created_at AS createdAt, u.first_name AS userFirstName,

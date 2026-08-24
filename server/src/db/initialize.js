@@ -19,6 +19,8 @@ const permissions = [
   "PATIENT_UPDATE",
   "PATIENT_DELETE",
   "PATIENT_SEARCH",
+  "VISIT_CREATE",
+  "VISIT_VIEW",
   "LAB_SERVICE_ADD",
   "SURGERY_VIEW",
   "SURGERY_SERVICE_VIEW",
@@ -31,6 +33,8 @@ const permissions = [
   "BLOOD_BANK_SERVICE_ADD",
   "BILL_CREATE",
   "BILL_VIEW",
+  "PAYMENT_CREATE",
+  "PAYMENT_VIEW",
   "BILL_PRINT",
   "USER_CREATE",
   "USER_VIEW",
@@ -48,10 +52,15 @@ const receptionPermissions = [
   "PATIENT_CREATE",
   "PATIENT_VIEW",
   "PATIENT_SEARCH",
+  "VISIT_CREATE",
+  "VISIT_VIEW",
   "REGISTRATION_FEE_VIEW",
   "REGISTRATION_FEE_COLLECT",
   "REGISTRATION_FEE_RECEIPT_VIEW",
   "REGISTRATION_FEE_RECEIPT_PRINT",
+  "BILL_VIEW",
+  "PAYMENT_CREATE",
+  "PAYMENT_VIEW",
 ];
 const departmentPatientPermissions = ["PATIENT_VIEW", "PATIENT_SEARCH"];
 
@@ -63,10 +72,10 @@ const tableStatements = [
   `CREATE TABLE IF NOT EXISTS role_permissions (role_id VARCHAR(191) NOT NULL, permission_id VARCHAR(191) NOT NULL, PRIMARY KEY (role_id, permission_id), KEY role_permissions_role_id_idx (role_id), KEY role_permissions_permission_id_idx (permission_id), CONSTRAINT role_permissions_role_id_fkey FOREIGN KEY (role_id) REFERENCES roles(id) ON DELETE CASCADE ON UPDATE CASCADE, CONSTRAINT role_permissions_permission_id_fkey FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE ON UPDATE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS audit_logs (id VARCHAR(191) NOT NULL, user_id VARCHAR(191) NULL, action VARCHAR(191) NOT NULL, entity VARCHAR(191) NOT NULL, entity_id VARCHAR(191) NULL, old_data JSON NULL, new_data JSON NULL, ip_address VARCHAR(191) NULL, user_agent VARCHAR(500) NULL, created_at DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3), PRIMARY KEY (id), KEY audit_logs_user_id_idx (user_id), KEY audit_logs_action_idx (action), KEY audit_logs_created_at_idx (created_at), CONSTRAINT audit_logs_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS doctors (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, first_name VARCHAR(100) NOT NULL, last_name VARCHAR(100) NOT NULL, specialization VARCHAR(150) NULL, phone VARCHAR(30) NULL, license_number VARCHAR(100) NULL, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY uq_doctors_license_number (license_number), KEY idx_doctors_active (is_active)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS patients (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_number VARCHAR(20) NOT NULL, first_name VARCHAR(100) NOT NULL, last_name VARCHAR(100) NOT NULL, father_name VARCHAR(100) NOT NULL, cnic VARCHAR(15) NOT NULL, phone VARCHAR(30) NOT NULL, address VARCHAR(500) NOT NULL, doctor_id BIGINT UNSIGNED NOT NULL, registration_locked BOOLEAN NOT NULL DEFAULT TRUE, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_by VARCHAR(191) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY uq_patients_patient_number (patient_number), KEY idx_patients_cnic (cnic), KEY idx_patients_active_cnic (is_active, cnic), KEY idx_patients_doctor_id (doctor_id), KEY idx_patients_created_by (created_by), CONSTRAINT patients_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES doctors(id), CONSTRAINT patients_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS patients (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_number VARCHAR(20) NOT NULL, first_name VARCHAR(100) NOT NULL, last_name VARCHAR(100) NOT NULL, father_name VARCHAR(100) NOT NULL, cnic VARCHAR(15) NOT NULL, phone VARCHAR(30) NOT NULL, address VARCHAR(500) NOT NULL, doctor_id BIGINT UNSIGNED NOT NULL, registration_locked BOOLEAN NOT NULL DEFAULT TRUE, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_by VARCHAR(191) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY uq_patients_patient_number (patient_number), UNIQUE KEY uq_patients_cnic (cnic), UNIQUE KEY uq_patients_phone (phone), KEY idx_patients_active_cnic (is_active, cnic), KEY idx_patients_doctor_id (doctor_id), KEY idx_patients_created_by (created_by), CONSTRAINT patients_doctor_id_fkey FOREIGN KEY (doctor_id) REFERENCES doctors(id), CONSTRAINT patients_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS patient_registration_audit (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_id BIGINT UNSIGNED NOT NULL, user_id VARCHAR(191) NOT NULL, action VARCHAR(30) NOT NULL, old_data JSON NULL, new_data JSON NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY (id), KEY idx_patient_registration_audit_patient (patient_id), KEY idx_patient_registration_audit_user (user_id), CONSTRAINT patient_registration_audit_patient_fkey FOREIGN KEY (patient_id) REFERENCES patients(id), CONSTRAINT patient_registration_audit_user_fkey FOREIGN KEY (user_id) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS settings (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, setting_key VARCHAR(100) NOT NULL, setting_value TEXT NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY settings_key_unique (setting_key)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
-  `CREATE TABLE IF NOT EXISTS registration_payments (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_id BIGINT UNSIGNED NOT NULL, receipt_number VARCHAR(50) NOT NULL, amount DECIMAL(10,2) NOT NULL, fee_type ENUM('FREE','ACTUAL','DISCOUNTED') NOT NULL DEFAULT 'DISCOUNTED', payment_method ENUM('CASH','CARD','BANK_TRANSFER','OTHER') NOT NULL, payment_status ENUM('PAID','PENDING','REFUNDED','CANCELLED') NOT NULL DEFAULT 'PAID', received_by VARCHAR(191) NOT NULL, paid_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY registration_payments_patient_unique (patient_id), UNIQUE KEY registration_payments_receipt_unique (receipt_number), KEY idx_registration_payments_paid_at (paid_at), CONSTRAINT registration_payments_patient_fkey FOREIGN KEY (patient_id) REFERENCES patients(id), CONSTRAINT registration_payments_received_by_fkey FOREIGN KEY (received_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+  `CREATE TABLE IF NOT EXISTS registration_payments (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_id BIGINT UNSIGNED NOT NULL, receipt_number VARCHAR(50) NOT NULL, amount DECIMAL(10,2) NOT NULL, fee_type ENUM('FREE','ACTUAL','DISCOUNTED') NOT NULL DEFAULT 'DISCOUNTED', payment_method ENUM('CASH','CARD','BANK_TRANSFER','OTHER') NOT NULL, payment_status ENUM('PAID','PENDING','REFUNDED','CANCELLED') NOT NULL DEFAULT 'PAID', received_by VARCHAR(191) NOT NULL, paid_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), KEY idx_registration_payments_patient (patient_id), UNIQUE KEY registration_payments_receipt_unique (receipt_number), KEY idx_registration_payments_paid_at (paid_at), CONSTRAINT registration_payments_patient_fkey FOREIGN KEY (patient_id) REFERENCES patients(id), CONSTRAINT registration_payments_received_by_fkey FOREIGN KEY (received_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS departments (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, name VARCHAR(150) NOT NULL, code VARCHAR(30) NOT NULL, description VARCHAR(500) NULL, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_by VARCHAR(191) NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY uq_departments_code (code), KEY idx_departments_active (is_active), CONSTRAINT departments_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS services (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, department_id BIGINT UNSIGNED NOT NULL, name VARCHAR(150) NOT NULL, code VARCHAR(50) NOT NULL, description VARCHAR(500) NULL, price DECIMAL(10,2) NOT NULL, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_by VARCHAR(191) NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY uq_services_code (code), KEY idx_services_department_active (department_id, is_active), CONSTRAINT services_department_id_fkey FOREIGN KEY (department_id) REFERENCES departments(id), CONSTRAINT services_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL ON UPDATE CASCADE) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   `CREATE TABLE IF NOT EXISTS patient_services (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_id BIGINT UNSIGNED NOT NULL, service_id BIGINT UNSIGNED NOT NULL, quantity INT UNSIGNED NOT NULL, unit_price DECIMAL(10,2) NOT NULL, total_amount DECIMAL(12,2) NOT NULL, notes VARCHAR(1000) NULL, status ENUM('ADDED','IN_PROGRESS','COMPLETED','CANCELLED') NOT NULL DEFAULT 'ADDED', added_by VARCHAR(191) NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), KEY idx_patient_services_patient_created (patient_id, created_at), KEY idx_patient_services_service (service_id), CONSTRAINT patient_services_patient_fkey FOREIGN KEY (patient_id) REFERENCES patients(id), CONSTRAINT patient_services_service_fkey FOREIGN KEY (service_id) REFERENCES services(id), CONSTRAINT patient_services_added_by_fkey FOREIGN KEY (added_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -227,6 +236,20 @@ export async function initializeDatabase({ log = false } = {}) {
   try {
     if (log) console.log("Creating tables...");
     for (const statement of tableStatements) await connection.query(statement);
+    const [patientCnicUnique] = await connection.query(
+      "SHOW INDEX FROM patients WHERE Key_name='uq_patients_cnic'",
+    );
+    if (!patientCnicUnique.length)
+      await connection.query(
+        "ALTER TABLE patients ADD UNIQUE KEY uq_patients_cnic (cnic)",
+      );
+    const [patientPhoneUnique] = await connection.query(
+      "SHOW INDEX FROM patients WHERE Key_name='uq_patients_phone'",
+    );
+    if (!patientPhoneUnique.length)
+      await connection.query(
+        "ALTER TABLE patients ADD UNIQUE KEY uq_patients_phone (phone)",
+      );
     await connection.query(
       "ALTER TABLE permissions MODIFY name VARCHAR(191) NOT NULL",
     );
@@ -253,6 +276,27 @@ export async function initializeDatabase({ log = false } = {}) {
     await connection.query(
       `CREATE TABLE IF NOT EXISTS visit_bills (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, visit_id BIGINT UNSIGNED NOT NULL, patient_id BIGINT UNSIGNED NOT NULL, visit_fee DECIMAL(10,2) NOT NULL, services_total DECIMAL(12,2) NOT NULL, total_amount DECIMAL(12,2) NOT NULL, created_by VARCHAR(191) NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY uq_visit_bills_visit (visit_id), KEY idx_visit_bills_patient (patient_id), CONSTRAINT visit_bills_visit_fkey FOREIGN KEY (visit_id) REFERENCES patient_visits(id), CONSTRAINT visit_bills_patient_fkey FOREIGN KEY (patient_id) REFERENCES patients(id), CONSTRAINT visit_bills_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     );
+    for (const [column, definition] of [
+      ["bill_number", "VARCHAR(50) NULL AFTER id"],
+      ["amount_paid", "DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER total_amount"],
+      ["balance_due", "DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER amount_paid"],
+      ["payment_status", "ENUM('UNPAID','PARTIALLY_PAID','PAID') NOT NULL DEFAULT 'UNPAID' AFTER balance_due"],
+    ]) {
+      const [columns] = await connection.query(`SHOW COLUMNS FROM visit_bills LIKE '${column}'`);
+      if (!columns.length) await connection.query(`ALTER TABLE visit_bills ADD COLUMN ${column} ${definition}`);
+    }
+    await connection.query("UPDATE visit_bills SET bill_number=CONCAT('BILL-',YEAR(created_at),'-',LPAD(id,6,'0')) WHERE bill_number IS NULL");
+    await connection.query(`UPDATE visit_bills b
+      LEFT JOIN (SELECT visit_id,SUM(amount) paid FROM registration_payments WHERE payment_status='PAID' GROUP BY visit_id) rp ON rp.visit_id=b.visit_id
+      LEFT JOIN (SELECT visit_id,SUM(amount) paid FROM bill_payments GROUP BY visit_id) bp ON bp.visit_id=b.visit_id
+      SET b.amount_paid=COALESCE(rp.paid,0)+COALESCE(bp.paid,0),
+          b.balance_due=GREATEST(b.total_amount-(COALESCE(rp.paid,0)+COALESCE(bp.paid,0)),0),
+          b.payment_status=CASE WHEN b.total_amount<=COALESCE(rp.paid,0)+COALESCE(bp.paid,0) THEN 'PAID' WHEN COALESCE(rp.paid,0)+COALESCE(bp.paid,0)>0 THEN 'PARTIALLY_PAID' ELSE 'UNPAID' END`);
+    const [billNumberIndex] = await connection.query("SHOW INDEX FROM visit_bills WHERE Key_name='uq_visit_bills_number'");
+    if (!billNumberIndex.length) await connection.query("ALTER TABLE visit_bills ADD UNIQUE KEY uq_visit_bills_number (bill_number)");
+    await connection.query(
+      `CREATE TABLE IF NOT EXISTS bill_payments (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, payment_number VARCHAR(50) NOT NULL, bill_id BIGINT UNSIGNED NOT NULL, patient_id BIGINT UNSIGNED NOT NULL, visit_id BIGINT UNSIGNED NOT NULL, amount DECIMAL(12,2) NOT NULL, payment_method ENUM('CASH','CARD','BANK_TRANSFER','OTHER') NOT NULL DEFAULT 'CASH', reference_number VARCHAR(100) NULL, notes VARCHAR(1000) NULL, received_by VARCHAR(191) NOT NULL, paid_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(id), UNIQUE KEY uq_bill_payments_number(payment_number), KEY idx_bill_payments_bill_paid(bill_id,paid_at), KEY idx_bill_payments_visit(visit_id), CONSTRAINT bill_payments_bill_fkey FOREIGN KEY(bill_id) REFERENCES visit_bills(id), CONSTRAINT bill_payments_patient_fkey FOREIGN KEY(patient_id) REFERENCES patients(id), CONSTRAINT bill_payments_visit_fkey FOREIGN KEY(visit_id) REFERENCES patient_visits(id), CONSTRAINT bill_payments_received_by_fkey FOREIGN KEY(received_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    );
     const [serviceVisit] = await connection.query(
       "SHOW COLUMNS FROM patient_services LIKE 'visit_id'",
     );
@@ -267,13 +311,28 @@ export async function initializeDatabase({ log = false } = {}) {
       await connection.query(
         "ALTER TABLE registration_payments ADD COLUMN visit_id BIGINT UNSIGNED NULL AFTER patient_id, ADD KEY idx_registration_payments_visit (visit_id), ADD CONSTRAINT registration_payments_visit_fkey FOREIGN KEY (visit_id) REFERENCES patient_visits(id)",
       );
+    }
+    const [paymentPatientIndex] = await connection.query(
+      "SHOW INDEX FROM registration_payments WHERE Key_name='idx_registration_payments_patient'",
+    );
+    if (!paymentPatientIndex.length)
+      await connection.query(
+        "ALTER TABLE registration_payments ADD KEY idx_registration_payments_patient (patient_id)",
+      );
+    const [legacyPaymentPatientUnique] = await connection.query(
+      "SHOW INDEX FROM registration_payments WHERE Key_name='registration_payments_patient_unique'",
+    );
+    if (legacyPaymentPatientUnique.length)
       await connection.query(
         "ALTER TABLE registration_payments DROP INDEX registration_payments_patient_unique",
       );
+    const [paymentVisitUnique] = await connection.query(
+      "SHOW INDEX FROM registration_payments WHERE Key_name='uq_registration_payments_visit'",
+    );
+    if (!paymentVisitUnique.length)
       await connection.query(
         "ALTER TABLE registration_payments ADD UNIQUE KEY uq_registration_payments_visit (visit_id)",
       );
-    }
     await connection.query(
       `INSERT IGNORE INTO patient_visits (patient_id, visit_number, visit_date, doctor_id, created_by) SELECT p.id, 1, DATE(p.created_at), p.doctor_id, p.created_by FROM patients p`,
     );
@@ -286,6 +345,7 @@ export async function initializeDatabase({ log = false } = {}) {
     await connection.query(
       `INSERT IGNORE INTO visit_bills (visit_id, patient_id, visit_fee, services_total, total_amount, created_by) SELECT v.id, v.patient_id, COALESCE(rp.amount,0), COALESCE(SUM(ps.total_amount),0), COALESCE(rp.amount,0)+COALESCE(SUM(ps.total_amount),0), v.created_by FROM patient_visits v LEFT JOIN registration_payments rp ON rp.visit_id=v.id LEFT JOIN patient_services ps ON ps.visit_id=v.id GROUP BY v.id, rp.id`,
     );
+    await connection.query("UPDATE visit_bills SET bill_number=CONCAT('BILL-',YEAR(created_at),'-',LPAD(id,6,'0')) WHERE bill_number IS NULL");
     if (log) console.log("Tables verified.");
     await seedAccessControl(connection);
     if (log) {

@@ -127,9 +127,9 @@ function OperationalDashboard() {
       icon: Banknote,
       tone: "bg-emerald-50 text-emerald-700",
     }, {
-      label: "Pending Payments",
-      value: data.financial?.pendingPayments || 0,
-      note: "No open items",
+      label: "Outstanding Balance",
+      value: `PKR ${Number(data.financial?.outstandingBalance || 0).toLocaleString("en-PK")}`,
+      note: "Across unpaid visit bills",
       icon: WalletCards,
       tone: "bg-slate-100 text-slate-700",
     }] : []),

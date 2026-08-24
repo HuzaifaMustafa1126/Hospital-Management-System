@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { doctorService } from "../services/doctor.service";
 import { patientService } from "../services/patient.service";
+import { useAuth } from "../context/AuthContext";
 
 const Info = ({ label, value }) => (
   <div>
@@ -26,6 +27,9 @@ const Info = ({ label, value }) => (
 export function PatientDetailPage({ edit = false }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const canCreateVisit = user?.permissions.includes("VISIT_CREATE");
+  const canViewVisits = user?.permissions.includes("VISIT_VIEW");
   const [patient, setPatient] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [form, setForm] = useState(null);
@@ -52,11 +56,12 @@ export function PatientDetailPage({ edit = false }) {
         .then((response) =>
           setDoctors(response.data.data.filter((doctor) => doctor.isActive)),
         );
-    patientService
-      .visits(id)
-      .then((response) => setVisits(response.data.data))
-      .catch(() => {});
-  }, [id, edit]);
+    if (canViewVisits)
+      patientService
+        .visits(id)
+        .then((response) => setVisits(response.data.data))
+        .catch(() => {});
+  }, [id, edit, canViewVisits]);
   if (error)
     return (
       <div className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-rose-700">
@@ -313,12 +318,14 @@ export function PatientDetailPage({ edit = false }) {
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-slate-800">Visit History</h3>
-              <Link
-                className="text-sm font-semibold text-teal-700"
-                to={`/patients/${id}/visits/new`}
-              >
-                + Visit Again
-              </Link>
+              {canCreateVisit && (
+                <Link
+                  className="text-sm font-semibold text-teal-700"
+                  to={`/patients/${id}/visits/new`}
+                >
+                  + Visit Again
+                </Link>
+              )}
             </div>
             {visits.length ? (
               <div className="mt-3 space-y-2">
@@ -336,6 +343,7 @@ export function PatientDetailPage({ edit = false }) {
                       <small className="mt-1 block text-slate-500">
                         Fee: {visit.feeType === "FREE" ? "FREE" : `PKR ${visit.visitFee}`} · Services: {visit.servicesCount} · Total: PKR {visit.total}
                       </small>
+                      {visit.billNumber && <small className="mt-1 block text-slate-500">Paid: PKR {visit.amountPaid} · Balance: PKR {visit.balanceDue} · {visit.paymentStatus?.replaceAll("_", " ")}</small>}
                     </span>
                     <button
                       className="font-semibold text-teal-700"
