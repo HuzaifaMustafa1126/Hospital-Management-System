@@ -23,6 +23,10 @@ const permissions = [
   "SURGERY_SERVICE_VIEW",
   "SURGERY_PATIENT_SEARCH",
   "BLOOD_SERVICE_ADD",
+  "BLOOD_BANK_VIEW",
+  "BLOOD_BANK_PATIENT_SEARCH",
+  "BLOOD_BANK_SERVICE_VIEW",
+  "BLOOD_BANK_SERVICE_ADD",
   "BILL_CREATE",
   "BILL_VIEW",
   "BILL_PRINT",
@@ -105,6 +109,11 @@ async function seed() {
       "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
       [roleIds.LAB_ATTENDANT, permissionIds.LAB_SERVICE_ADD],
     );
+    for (const name of ["BLOOD_BANK_VIEW", "BLOOD_BANK_PATIENT_SEARCH", "BLOOD_BANK_SERVICE_VIEW", "BLOOD_BANK_SERVICE_ADD"])
+      await connection.execute(
+        "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+        [roleIds.BLOOD_BANK_STAFF, permissionIds[name]],
+      );
     for (const name of ["SURGERY_VIEW", "SURGERY_SERVICE_VIEW", "SURGERY_SERVICE_ADD", "SURGERY_PATIENT_SEARCH"])
       await connection.execute(
         "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",

@@ -269,7 +269,7 @@ export const patientService = {
   async get(id) {
     const patient = await getById(id);
     const [services] = await database.execute(
-      `SELECT ps.id, s.name AS serviceName, d.name AS departmentName, ps.quantity, ps.unit_price AS unitPrice, ps.total_amount AS totalAmount, ps.status, ps.created_at AS createdAt, u.first_name AS addedByFirstName, u.last_name AS addedByLastName FROM patient_services ps JOIN services s ON s.id = ps.service_id JOIN departments d ON d.id = s.department_id JOIN users u ON u.id = ps.added_by WHERE ps.patient_id = ? ORDER BY ps.created_at DESC`,
+      `SELECT ps.id, ps.visit_id AS visitId, v.visit_number AS visitNumber, v.visit_date AS visitDate, s.name AS serviceName, s.code AS serviceCode, d.name AS departmentName, d.code AS departmentCode, ps.quantity, ps.unit_price AS unitPrice, ps.total_amount AS totalAmount, ps.status, ps.created_at AS createdAt, u.first_name AS addedByFirstName, u.last_name AS addedByLastName FROM patient_services ps LEFT JOIN patient_visits v ON v.id=ps.visit_id JOIN services s ON s.id = ps.service_id JOIN departments d ON d.id = s.department_id JOIN users u ON u.id = ps.added_by WHERE ps.patient_id = ? ORDER BY COALESCE(v.visit_number,0) DESC, ps.created_at DESC`,
       [id],
     );
     return {

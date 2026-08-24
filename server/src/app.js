@@ -17,6 +17,7 @@ import { userRouter } from "./routes/user.routes.js";
 import { laboratoryRouter } from "./routes/laboratory.routes.js";
 import { surgeryRouter } from "./routes/surgery.routes.js";
 import { visitRouter } from "./routes/visit.routes.js";
+import { bloodBankRouter } from "./routes/blood-bank.routes.js";
 
 export const app = express();
 
@@ -50,5 +51,6 @@ app.use("/api/v1/settings", settingsRouter);
 app.use("/api/v1/registration-payments", registrationPaymentRouter);
 app.use("/api/v1/laboratory", laboratoryRouter);
 app.use("/api/v1/surgery", surgeryRouter);
+app.use("/api/v1/blood-bank", bloodBankRouter);
 app.use(notFound);
 app.use(errorHandler);

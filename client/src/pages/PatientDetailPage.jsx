@@ -173,6 +173,14 @@ export function PatientDetailPage({ edit = false }) {
       </div>
     );
   const doctorName = `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}`;
+  const servicesByVisit = Object.values((patient.services || []).reduce((groups, service) => {
+    const key = service.visitId || "legacy";
+    if (!groups[key]) groups[key] = { visitNumber: service.visitNumber, visitDate: service.visitDate, departments: {} };
+    const department = service.departmentName || "Other";
+    if (!groups[key].departments[department]) groups[key].departments[department] = [];
+    groups[key].departments[department].push(service);
+    return groups;
+  }, {}));
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <Link
@@ -344,24 +352,9 @@ export function PatientDetailPage({ edit = false }) {
           </section>
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <h3 className="font-bold text-slate-800">Services</h3>
-            {patient.services?.length ? (
+            {servicesByVisit.length ? (
               <div className="mt-3 space-y-3">
-                {patient.services.map((service) => (
-                  <div
-                    key={service.id}
-                    className="rounded-lg bg-slate-50 p-3 text-sm"
-                  >
-                    <b className="block text-slate-800">
-                      {service.serviceName}
-                    </b>
-                    <p className="mt-1 text-slate-500">
-                      {service.departmentName} · ×{service.quantity}
-                    </p>
-                    <p className="mt-1 font-semibold text-slate-700">
-                      PKR {service.totalAmount}
-                    </p>
-                  </div>
-                ))}
+                {servicesByVisit.map((visit) => <div key={visit.visitNumber || "legacy"} className="rounded-xl border border-slate-100 p-3"><p className="text-sm font-bold text-slate-800">{visit.visitNumber ? `Visit #${visit.visitNumber}` : "Legacy services"}</p>{Object.entries(visit.departments).map(([department, departmentServices]) => <div className="mt-3" key={department}><p className="hms-label">{department}</p>{departmentServices.map((service) => <div className="mt-2 flex items-center justify-between rounded-lg bg-slate-50 p-3 text-sm" key={service.id}><span><b className="block">{service.serviceName}</b><small className="text-slate-500">{service.serviceCode} · ×{service.quantity}</small></span><b>PKR {service.totalAmount}</b></div>)}</div>)}</div>)}
               </div>
             ) : (
               <p className="mt-2 text-sm leading-6 text-slate-500">

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import {
   Activity,
   ClipboardList,
+  Droplets,
   FlaskConical,
   LogIn,
   LogOut,
@@ -21,8 +22,10 @@ const actionIcon = (a = "") =>
       ? LogOut
       : a.includes("PATIENT_CREATED")
         ? UserPlus
-        : a.includes("PATIENT_UPDATED")
+          : a.includes("PATIENT_UPDATED")
           ? UserRoundPen
+          : a.includes("BLOOD_BANK_SERVICE")
+            ? Droplets
           : a.includes("LAB_SERVICE")
             ? FlaskConical
             : a.includes("PAYMENT")

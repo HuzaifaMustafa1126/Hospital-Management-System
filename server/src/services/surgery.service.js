@@ -1,6 +1,7 @@
 import { database } from "../db/database.js";
 import { AppError } from "../utils/app-error.js";
 import { randomUUID } from "node:crypto";
+import { currentOpenVisit, recalculateVisitBill } from "./visit-billing.service.js";
 
 const patientSelect = `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.father_name AS fatherName, p.cnic, p.phone, p.address, p.is_active AS isActive, p.created_at AS createdAt, d.id AS doctorId, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, d.specialization AS doctorSpecialization, rp.fee_type AS registrationFeeType, rp.amount AS registrationFee FROM patients p JOIN doctors d ON d.id=p.doctor_id LEFT JOIN patient_visits v ON v.patient_id=p.id AND v.visit_number=1 LEFT JOIN registration_payments rp ON rp.visit_id=v.id`;
 const presentPatient = (row) => ({ ...row, isActive: Boolean(row.isActive), registrationFee: row.registrationFee === null ? null : Number(row.registrationFee), doctor: { id: row.doctorId, firstName: row.doctorFirstName, lastName: row.doctorLastName, specialization: row.doctorSpecialization } });
@@ -83,6 +84,7 @@ export const surgeryService = {
       await connection.beginTransaction();
       const [patients] = await connection.execute("SELECT id,patient_number AS patientNumber,CONCAT(first_name,' ',last_name) AS patientName FROM patients WHERE id=? AND is_active=TRUE FOR UPDATE", [patientId]);
       if (!patients.length) throw new AppError(404, "Patient not found.");
+      const visit = await currentOpenVisit(connection, patientId);
       const [services] = await connection.execute("SELECT s.id,s.name,s.code,s.price,s.is_active AS isActive,d.code AS departmentCode,d.is_active AS departmentActive FROM services s JOIN departments d ON d.id=s.department_id WHERE s.id=? FOR UPDATE", [input.serviceId]);
       if (!services.length) throw new AppError(404, "Surgery service not found.");
       const service = services[0];
@@ -91,11 +93,12 @@ export const surgeryService = {
       if (!Number.isInteger(input.quantity) || input.quantity < 1) throw new AppError(400, "Quantity must be a positive whole number.");
       const unitPrice = Number(service.price);
       const totalAmount = unitPrice * input.quantity;
-      const [result] = await connection.execute("INSERT INTO patient_services (patient_id,service_id,quantity,unit_price,total_amount,notes,added_by) VALUES (?,?,?,?,?,?,?)", [patientId, input.serviceId, input.quantity, unitPrice, totalAmount, input.notes || null, actor.id]);
-      const details = `${actor.firstName} ${actor.lastName} added ${service.name} (${service.code}) for ${patients[0].patientName} (${patients[0].patientNumber}) for PKR ${totalAmount.toLocaleString("en-PK")}.`;
-      await connection.execute("INSERT INTO audit_logs (id,user_id,action,entity,entity_id,details,new_data) VALUES (?,?,'SURGERY_SERVICE_ADDED','PATIENT_SERVICE',?,?,?)", [randomUUID(), actor.id, String(result.insertId), details, JSON.stringify({ patientId: Number(patientId), serviceId: input.serviceId, quantity: input.quantity, unitPrice, totalAmount })]);
+      const [result] = await connection.execute("INSERT INTO patient_services (patient_id,visit_id,service_id,quantity,unit_price,total_amount,notes,added_by) VALUES (?,?,?,?,?,?,?,?)", [patientId, visit.id, input.serviceId, input.quantity, unitPrice, totalAmount, input.notes || null, actor.id]);
+      await recalculateVisitBill(connection, visit.id, actor.id);
+      const details = `${actor.firstName} ${actor.lastName} added ${service.name} (${service.code}) for ${patients[0].patientName} (${patients[0].patientNumber}), Visit #${visit.visitNumber}, for PKR ${totalAmount.toLocaleString("en-PK")}.`;
+      await connection.execute("INSERT INTO audit_logs (id,user_id,action,entity,entity_id,details,new_data) VALUES (?,?,'SURGERY_SERVICE_ADDED','PATIENT_SERVICE',?,?,?)", [randomUUID(), actor.id, String(result.insertId), details, JSON.stringify({ patientId: Number(patientId), visitId: visit.id, serviceId: input.serviceId, quantity: input.quantity, unitPrice, totalAmount })]);
       await connection.commit();
-      return { id: result.insertId, patientId: Number(patientId), serviceId: input.serviceId, serviceName: service.name, serviceCode: service.code, quantity: input.quantity, unitPrice, totalAmount, notes: input.notes || null, status: "ADDED", details };
+      return { id: result.insertId, patientId: Number(patientId), visitId: visit.id, serviceId: input.serviceId, serviceName: service.name, serviceCode: service.code, quantity: input.quantity, unitPrice, totalAmount, notes: input.notes || null, status: "ADDED", details };
     } catch (error) { await connection.rollback(); throw error; } finally { connection.release(); }
   },
 };

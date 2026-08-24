@@ -10,6 +10,7 @@ import {
   UserRoundPlus,
   UserPlus,
   WalletCards,
+  Droplets,
 } from "lucide-react";
 import {
   Area,
@@ -25,6 +26,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { dashboardService } from "../services/dashboard.service";
 import { SurgeryPage } from "./SurgeryPage";
+import { BloodBankPage } from "./BloodBankPage";
 
 const day = (date) =>
   new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
@@ -110,6 +112,13 @@ function OperationalDashboard() {
       note: "Surgery services added today",
       icon: Activity,
       tone: "bg-slate-100 text-slate-700",
+    },
+    {
+      label: "Blood Bank Activity",
+      value: data.bloodBankToday,
+      note: "Blood Bank services added today",
+      icon: Droplets,
+      tone: "bg-rose-50 text-rose-700",
     },
     ...(admin ? [{
       label: "Today's Revenue",
@@ -452,5 +461,6 @@ function OperationalDashboard() {
 export function DashboardPage() {
   const { user } = useAuth();
   if (user?.roles.includes("SURGERY_ATTENDANT")) return <SurgeryPage />;
+  if (user?.roles.includes("BLOOD_BANK_STAFF")) return <BloodBankPage />;
   return <OperationalDashboard />;
 }

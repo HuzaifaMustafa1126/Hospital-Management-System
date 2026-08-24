@@ -6,6 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Droplets,
   FlaskConical,
   LayoutDashboard,
   Menu,
@@ -33,6 +34,7 @@ export function AppLayout() {
   const admin = user?.roles?.includes("SUPER_ADMIN");
   const lab = user?.roles?.includes("LAB_ATTENDANT");
   const surgery = user?.roles?.includes("SURGERY_ATTENDANT");
+  const bloodBank = user?.roles?.includes("BLOOD_BANK_STAFF");
   useEffect(() => setMobileOpen(false), [location.pathname]);
   useEffect(() => {
     const close = (e) => e.key === "Escape" && setMobileOpen(false);
@@ -61,6 +63,8 @@ export function AppLayout() {
             ["Services", "/services", Tag],
             ["Surgery", "/surgery", Scissors],
             ["Surgery Patients", "/surgery/patients", Search],
+            ["Blood Bank", "/blood-bank", Droplets],
+            ["Blood Bank Patients", "/blood-bank/patients", Search],
           ],
         ],
           [
@@ -96,6 +100,11 @@ export function AppLayout() {
             ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
             ["SURGERY", [["Surgery Dashboard", "/surgery", Scissors], ["Surgery Patients", "/surgery/patients", Search]]],
           ]
+        : bloodBank
+          ? [
+              ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
+              ["BLOOD BANK", [["Blood Bank", "/blood-bank", Droplets], ["Search Patient", "/blood-bank/patients", Search]]],
+            ]
         : [
             ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
             [

@@ -11,6 +11,7 @@ export const dashboardService = {
       [activeServiceCount],
       [inactiveServiceCount],
       [surgeryToday],
+      [bloodBankToday],
       [recent],
       [trend],
       [revenue],
@@ -36,6 +37,9 @@ export const dashboardService = {
       ),
       database.execute(
         "SELECT COUNT(*) AS total FROM patient_services ps JOIN services s ON s.id=ps.service_id JOIN departments d ON d.id=s.department_id WHERE d.code='SUR' AND DATE(ps.created_at)=CURDATE()",
+      ),
+      database.execute(
+        "SELECT COUNT(*) AS total FROM patient_services ps JOIN services s ON s.id=ps.service_id JOIN departments d ON d.id=s.department_id WHERE d.code IN ('BB','BLOOD_BANK') AND DATE(ps.created_at)=CURDATE()",
       ),
       database.execute(`${patientSelect} ORDER BY p.created_at DESC LIMIT 5`),
       database.execute(
@@ -73,6 +77,7 @@ export const dashboardService = {
       activeServices: activeServiceCount[0].total,
       inactiveServices: inactiveServiceCount[0].total,
       surgeryToday: Number(surgeryToday[0].total),
+      bloodBankToday: Number(bloodBankToday[0].total),
       todayServices: 0,
       registrationTrend: days.map((date) => ({
         date,

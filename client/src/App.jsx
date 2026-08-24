@@ -27,6 +27,9 @@ import { UserDetailPage } from "./pages/UserDetailPage";
 import { VisitDetailPage } from "./pages/VisitDetailPage";
 import { NewVisitPage } from "./pages/NewVisitPage";
 import { UsersPage } from "./pages/UsersPage";
+import { BloodBankPage } from "./pages/BloodBankPage";
+import { BloodBankPatientsPage } from "./pages/BloodBankPatientsPage";
+import { BloodBankPatientPage } from "./pages/BloodBankPatientPage";
 
 export function App() {
   return (
@@ -96,6 +99,11 @@ export function App() {
               <Route path="/surgery" element={<SurgeryPage />} />
               <Route path="/surgery/patients" element={<SurgeryPatientsPage />} />
               <Route path="/surgery/patients/:id" element={<SurgeryPatientPage />} />
+            </Route>
+            <Route element={<RoleProtectedRoute roles={["BLOOD_BANK_STAFF", "SUPER_ADMIN"]} />}>
+              <Route path="/blood-bank" element={<BloodBankPage />} />
+              <Route path="/blood-bank/patients" element={<BloodBankPatientsPage />} />
+              <Route path="/blood-bank/patients/:id" element={<BloodBankPatientPage />} />
             </Route>
 
             {/* Super Admin Routes */}
