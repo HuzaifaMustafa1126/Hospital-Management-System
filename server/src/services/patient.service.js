@@ -220,6 +220,9 @@ export const patientService = {
         [paymentResult.insertId],
       );
       const payment = presentPayment(paymentRows[0]);
+      const [actors] = await connection.execute("SELECT CONCAT(first_name,' ',last_name) AS name FROM users WHERE id=?", [actorId]);
+      const actorName = actors[0]?.name || "System";
+      const patientName = `${patient.firstName} ${patient.lastName}`;
       await registrationAudit(
         connection,
         patient.id,
@@ -229,24 +232,26 @@ export const patientService = {
         patientData(patient),
       );
       await connection.execute(
-        "INSERT INTO audit_logs (id, user_id, action, entity, entity_id, new_data) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO audit_logs (id, user_id, action, entity, entity_id, details, new_data) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
           randomUUID(),
           actorId,
           "PATIENT_CREATED",
           "PATIENT",
           String(patient.id),
+          `${actorName} registered patient ${patientName} (${patient.patientNumber}).`,
           JSON.stringify(patient),
         ],
       );
       await connection.execute(
-        "INSERT INTO audit_logs (id, user_id, action, entity, entity_id, new_data) VALUES (?, ?, ?, ?, ?, ?)",
+        "INSERT INTO audit_logs (id, user_id, action, entity, entity_id, details, new_data) VALUES (?, ?, ?, ?, ?, ?, ?)",
         [
           randomUUID(),
           actorId,
           "REGISTRATION_PAYMENT_CREATED",
           "REGISTRATION_PAYMENT",
           String(payment.id),
+          `${actorName} recorded a ${payment.feeType.toLowerCase()} registration fee of PKR ${payment.amount.toLocaleString("en-PK")} for ${patientName} (${patient.patientNumber}).`,
           JSON.stringify(payment),
         ],
       );

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Bell,
+  Banknote,
   Building2,
   ChevronLeft,
   ChevronRight,
@@ -59,11 +60,13 @@ export function AppLayout() {
             ["Departments", "/departments", Building2],
             ["Services", "/services", Tag],
             ["Surgery", "/surgery", Scissors],
+            ["Surgery Patients", "/surgery/patients", Search],
           ],
         ],
-        [
-          "FINANCE",
           [
+            "FINANCE",
+            [
+              ["Revenue", "/revenue", Banknote],
             [
               "Registration Fees",
               "/admin/settings/registration-fee",
@@ -91,7 +94,7 @@ export function AppLayout() {
       : surgery
         ? [
             ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
-            ["SURGERY", [["Surgery", "/surgery", Scissors]]],
+            ["SURGERY", [["Surgery Dashboard", "/surgery", Scissors], ["Surgery Patients", "/surgery/patients", Search]]],
           ]
         : [
             ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],

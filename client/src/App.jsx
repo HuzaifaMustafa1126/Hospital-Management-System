@@ -18,8 +18,11 @@ import { PatientListPage } from "./pages/PatientListPage";
 import { PatientRegistrationPage } from "./pages/PatientRegistrationPage";
 import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { RegistrationFeeSettingsPage } from "./pages/RegistrationFeeSettingsPage";
+import { RevenuePage } from "./pages/RevenuePage";
 import { ServicesPage } from "./pages/ServicesPage";
 import { SurgeryPage } from "./pages/SurgeryPage";
+import { SurgeryPatientPage } from "./pages/SurgeryPatientPage";
+import { SurgeryPatientsPage } from "./pages/SurgeryPatientsPage";
 import { UserDetailPage } from "./pages/UserDetailPage";
 import { VisitDetailPage } from "./pages/VisitDetailPage";
 import { NewVisitPage } from "./pages/NewVisitPage";
@@ -91,6 +94,8 @@ export function App() {
               }
             >
               <Route path="/surgery" element={<SurgeryPage />} />
+              <Route path="/surgery/patients" element={<SurgeryPatientsPage />} />
+              <Route path="/surgery/patients/:id" element={<SurgeryPatientPage />} />
             </Route>
 
             {/* Super Admin Routes */}
@@ -113,6 +118,7 @@ export function App() {
               />
 
               <Route path="/audit-logs" element={<AuditLogsPage />} />
+              <Route path="/revenue" element={<RevenuePage />} />
 
               <Route path="/admin/patients" element={<PatientListPage />} />
 

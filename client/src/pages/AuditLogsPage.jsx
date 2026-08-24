@@ -35,23 +35,6 @@ const label = (v) =>
     ?.replaceAll("_", " ")
     .toLowerCase()
     .replace(/\b\w/g, (x) => x.toUpperCase());
-const description = (log) => {
-  const person = log.user
-    ? `${log.user.firstName} ${log.user.lastName}`
-    : "System";
-  const entity = `${log.entity?.toLowerCase().replaceAll("_", " ") || "record"}${log.entityId ? ` #${log.entityId}` : ""}`;
-  if (log.action === "PATIENT_CREATED")
-    return `${person} registered a new patient (${entity}).`;
-  if (log.action === "REGISTRATION_PAYMENT_CREATED")
-    return `${person} recorded a registration payment for ${entity}.`;
-  if (log.action === "LAB_SERVICE_ADDED")
-    return `${person} added a laboratory service to ${entity}.`;
-  if (log.action === "SURGERY_SERVICE_ADDED")
-    return `${person} added a surgery service to ${entity}.`;
-  if (log.action === "LOGIN") return `${person} signed in.`;
-  if (log.action === "LOGOUT") return `${person} signed out.`;
-  return `${person} ${label(log.action)?.toLowerCase()} ${entity}.`;
-};
 export function AuditLogsPage() {
   const [range, setRange] = useState("30d"),
     [filters, setFilters] = useState({ search: "", action: "", entity: "" }),
@@ -193,7 +176,7 @@ export function AuditLogsPage() {
                 <button
                   onClick={() => setSelected(log)}
                   key={log.id}
-                  className="grid w-full gap-3 px-5 py-4 text-left transition hover:bg-teal-50 sm:grid-cols-[44px_1.4fr_1fr_1fr_auto]"
+                  className="grid w-full gap-3 px-5 py-4 text-left transition hover:bg-teal-50 sm:grid-cols-[44px_1fr_1fr_2fr_1fr_auto]"
                 >
                   <span className="grid h-10 w-10 place-items-center rounded-xl bg-slate-100 text-teal-700">
                     <Icon size={19} />
@@ -213,13 +196,9 @@ export function AuditLogsPage() {
                     <small>{log.user?.role || "System"}</small>
                   </span>
                   <span className="text-sm text-slate-600">
-                    <b className="block">
-                      {new Date(log.createdAt).toLocaleDateString()}
-                    </b>
-                    <small>
-                      {new Date(log.createdAt).toLocaleTimeString()}
-                    </small>
+                    {log.details}
                   </span>
+                  <span className="text-sm text-slate-600"><b className="block">{new Date(log.createdAt).toLocaleDateString()}</b><small>{new Date(log.createdAt).toLocaleTimeString()}</small></span>
                   <span className="text-sm font-semibold text-teal-700">
                     Details
                   </span>
@@ -246,7 +225,7 @@ export function AuditLogsPage() {
             {label(selected.action)}
           </h3>
           <p className="mt-4 rounded-xl bg-teal-50 p-4 text-sm leading-6 text-teal-900">
-            {description(selected)}
+            {selected.details}
           </p>
           <dl className="mt-6 space-y-4 text-sm">
             {[
@@ -261,7 +240,6 @@ export function AuditLogsPage() {
               ["Entity ID", selected.entityId || "—"],
               ["Date", new Date(selected.createdAt).toLocaleDateString()],
               ["Time", new Date(selected.createdAt).toLocaleTimeString()],
-              ["IP Address", selected.ipAddress || "Not recorded"],
             ].map(([k, v]) => (
               <div key={k}>
                 <dt className="text-slate-500">{k}</dt>

@@ -2,7 +2,7 @@ import { database } from "../db/database.js";
 
 const patientSelect = `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.cnic, p.registration_locked AS registrationLocked, p.created_at AS createdAt, d.first_name AS doctorFirstName, d.last_name AS doctorLastName FROM patients p JOIN doctors d ON d.id = p.doctor_id WHERE p.is_active = TRUE`;
 export const dashboardService = {
-  async summary() {
+  async summary({ includeFinancial = false } = {}) {
     const [
       [patientCount],
       [todayCount],
@@ -14,6 +14,7 @@ export const dashboardService = {
       [recent],
       [trend],
       [revenue],
+      [financialTotals],
       [activity],
       [departmentActivity],
     ] = await Promise.all([
@@ -40,9 +41,12 @@ export const dashboardService = {
       database.execute(
         "SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS total FROM patients WHERE is_active = TRUE AND created_at >= CURDATE() - INTERVAL 6 DAY GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d') ORDER BY date",
       ),
-      database.execute(
+      includeFinancial ? database.execute(
         "SELECT DATE_FORMAT(paid_at, '%Y-%m-%d') AS date, COALESCE(SUM(amount), 0) AS total FROM registration_payments WHERE payment_status = 'PAID' AND paid_at >= CURDATE() - INTERVAL 6 DAY GROUP BY DATE_FORMAT(paid_at, '%Y-%m-%d') ORDER BY date",
-      ),
+      ) : Promise.resolve([[]]),
+      includeFinancial ? database.execute(
+        "SELECT COALESCE(SUM(CASE WHEN payment_status='PAID' AND DATE(paid_at)=CURDATE() THEN amount ELSE 0 END),0) AS todayRevenue, SUM(payment_status='PENDING') AS pendingPayments, COALESCE(SUM(CASE WHEN payment_status='PAID' THEN amount ELSE 0 END),0) AS registrationRevenue FROM registration_payments",
+      ) : Promise.resolve([[]]),
       database.execute(
         "SELECT action, entity, entity_id AS entityId, created_at AS createdAt FROM audit_logs ORDER BY created_at DESC LIMIT 5",
       ),
@@ -61,7 +65,7 @@ export const dashboardService = {
     const revenueTotals = Object.fromEntries(
       revenue.map((row) => [row.date, Number(row.total)]),
     );
-    return {
+    const result = {
       totalPatients: patientCount[0].total,
       todayPatients: todayCount[0].total,
       activeDoctors: doctorCount[0].total,
@@ -70,12 +74,10 @@ export const dashboardService = {
       inactiveServices: inactiveServiceCount[0].total,
       surgeryToday: Number(surgeryToday[0].total),
       todayServices: 0,
-      todayRevenue: 0,
-      pendingPayments: 0,
       registrationTrend: days.map((date) => ({
         date,
         registrations: totals[date] || 0,
-        revenue: revenueTotals[date] || 0,
+        ...(includeFinancial ? { revenue: revenueTotals[date] || 0 } : {}),
       })),
       departmentActivity: departmentActivity.map((row) => ({
         department: row.department,
@@ -98,5 +100,12 @@ export const dashboardService = {
         createdAt: row.createdAt,
       })),
     };
+    if (includeFinancial) result.financial = {
+      todayRevenue: Number(financialTotals[0]?.todayRevenue || 0),
+      pendingPayments: Number(financialTotals[0]?.pendingPayments || 0),
+      registrationRevenue: Number(financialTotals[0]?.registrationRevenue || 0),
+      revenueTrend: days.map((date) => ({ date, revenue: revenueTotals[date] || 0 })),
+    };
+    return result;
   },
 };

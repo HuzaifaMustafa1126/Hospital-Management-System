@@ -33,6 +33,7 @@ const permissions = [
   "USER_UPDATE",
   "USER_DELETE",
   "AUDIT_LOG_VIEW",
+  "REVENUE_VIEW",
   "REGISTRATION_FEE_VIEW",
   "REGISTRATION_FEE_UPDATE",
   "REGISTRATION_FEE_COLLECT",
@@ -220,6 +221,13 @@ export async function initializeDatabase({ log = false } = {}) {
     await connection.query(
       "ALTER TABLE permissions MODIFY name VARCHAR(191) NOT NULL",
     );
+    const [auditDetailsColumn] = await connection.query(
+      "SHOW COLUMNS FROM audit_logs LIKE 'details'",
+    );
+    if (!auditDetailsColumn.length)
+      await connection.query(
+        "ALTER TABLE audit_logs ADD COLUMN details TEXT NULL AFTER entity_id",
+      );
     const [feeTypeColumn] = await connection.query(
       "SHOW COLUMNS FROM registration_payments LIKE 'fee_type'",
     );

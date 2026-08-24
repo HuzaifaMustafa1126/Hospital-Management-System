@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 import { Activity, Scissors, Search, Stethoscope, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
-import { api } from "../services/api";
+import { surgeryService } from "../services/surgery.service";
 const money = (value) => `PKR ${new Intl.NumberFormat().format(value || 0)}`;
 export function SurgeryPage() {
   const [data, setData] = useState(null),
     [error, setError] = useState("");
   useEffect(() => {
-    api
-      .get("/surgery")
+    surgeryService
+      .overview()
       .then((r) => setData(r.data.data))
       .catch((e) =>
         setError(
@@ -30,9 +30,9 @@ export function SurgeryPage() {
       </div>
     );
   const cards = [
-    ["Surgery Services", data.serviceCount, Tag],
+    ["Today's Surgery Services", data.todayCount, Tag],
     ["Active Services", data.activeCount, Scissors],
-    ["Today's Activity", data.todayCount, Activity],
+    ["Patients Served Today", data.patientsToday, Activity],
     ["Available Services", data.services.length, Stethoscope],
   ];
   return (
@@ -63,7 +63,7 @@ export function SurgeryPage() {
           </div>
           <Link
             className="hms-button-secondary"
-            to="/reception/patients/search"
+            to="/surgery/patients"
           >
             <Search size={16} /> Search Patient
           </Link>
@@ -101,10 +101,7 @@ export function SurgeryPage() {
         {data.activity.length ? (
           <div className="mt-4 space-y-3">
             {data.activity.map((item) => (
-              <p className="text-sm text-slate-600" key={item.id}>
-                <b>{item.serviceName}</b> added{" "}
-                {new Date(item.createdAt).toLocaleString()}
-              </p>
+              <Link className="block rounded-lg p-2 text-sm text-slate-600 hover:bg-slate-50" key={item.id} to={`/surgery/patients/${item.patientId}`}><b>{item.serviceName}</b> for {item.patientName} ({item.patientNumber})<span className="mt-1 block text-xs text-slate-500">{new Date(item.createdAt).toLocaleString()} · {item.status}</span></Link>
             ))}
           </div>
         ) : (

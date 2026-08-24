@@ -7,7 +7,7 @@ const roles = [
   "SUPER_ADMIN",
   "RECEPTION",
   "LAB_ATTENDANT",
-  "SURGERY_STAFF",
+  "SURGERY_ATTENDANT",
   "BLOOD_BANK_STAFF",
   "BILLING_STAFF",
 ];
@@ -19,6 +19,9 @@ const permissions = [
   "PATIENT_SEARCH",
   "LAB_SERVICE_ADD",
   "SURGERY_SERVICE_ADD",
+  "SURGERY_VIEW",
+  "SURGERY_SERVICE_VIEW",
+  "SURGERY_PATIENT_SEARCH",
   "BLOOD_SERVICE_ADD",
   "BILL_CREATE",
   "BILL_VIEW",
@@ -28,6 +31,7 @@ const permissions = [
   "USER_UPDATE",
   "USER_DELETE",
   "AUDIT_LOG_VIEW",
+  "REVENUE_VIEW",
   "REGISTRATION_FEE_VIEW",
   "REGISTRATION_FEE_UPDATE",
   "REGISTRATION_FEE_COLLECT",
@@ -47,7 +51,7 @@ const departmentPatientPermissions = ["PATIENT_VIEW", "PATIENT_SEARCH"];
 const developmentUsers = [
   ["Reception", "Staff", "reception@hospital.local", "RECEPTION"],
   ["Lab", "Staff", "lab@hospital.local", "LAB_ATTENDANT"],
-  ["Surgery", "Staff", "surgery@hospital.local", "SURGERY_STAFF"],
+  ["Surgery", "Staff", "surgery@hospital.local", "SURGERY_ATTENDANT"],
   ["Blood Bank", "Staff", "bloodbank@hospital.local", "BLOOD_BANK_STAFF"],
   ["Billing", "Staff", "billing@hospital.local", "BILLING_STAFF"],
 ];
@@ -88,7 +92,7 @@ async function seed() {
       );
     for (const role of [
       "LAB_ATTENDANT",
-      "SURGERY_STAFF",
+      "SURGERY_ATTENDANT",
       "BLOOD_BANK_STAFF",
       "BILLING_STAFF",
     ])
@@ -101,6 +105,11 @@ async function seed() {
       "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
       [roleIds.LAB_ATTENDANT, permissionIds.LAB_SERVICE_ADD],
     );
+    for (const name of ["SURGERY_VIEW", "SURGERY_SERVICE_VIEW", "SURGERY_SERVICE_ADD", "SURGERY_PATIENT_SEARCH"])
+      await connection.execute(
+        "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
+        [roleIds.SURGERY_ATTENDANT, permissionIds[name]],
+      );
     await connection.execute(
       "DELETE rp FROM role_permissions rp JOIN roles r ON r.id = rp.role_id JOIN permissions p ON p.id = rp.permission_id WHERE p.name = 'PATIENT_UPDATE' AND r.name <> 'SUPER_ADMIN'",
     );

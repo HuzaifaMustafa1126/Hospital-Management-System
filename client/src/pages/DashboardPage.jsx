@@ -24,6 +24,7 @@ import {
 } from "recharts";
 import { useAuth } from "../context/AuthContext";
 import { dashboardService } from "../services/dashboard.service";
+import { SurgeryPage } from "./SurgeryPage";
 
 const day = (date) =>
   new Date(`${date}T00:00:00`).toLocaleDateString(undefined, {
@@ -36,7 +37,7 @@ const skeleton = (
   </div>
 );
 
-export function DashboardPage() {
+function OperationalDashboard() {
   const { user } = useAuth();
   const admin = user?.roles.includes("SUPER_ADMIN");
   const [data, setData] = useState(null);
@@ -110,20 +111,19 @@ export function DashboardPage() {
       icon: Activity,
       tone: "bg-slate-100 text-slate-700",
     },
-    {
+    ...(admin ? [{
       label: "Today's Revenue",
-      value: `PKR ${data.todayRevenue}`,
+      value: `PKR ${data.financial?.todayRevenue || 0}`,
       note: "Paid registrations",
       icon: Banknote,
       tone: "bg-emerald-50 text-emerald-700",
-    },
-    {
+    }, {
       label: "Pending Payments",
-      value: data.pendingPayments,
+      value: data.financial?.pendingPayments || 0,
       note: "No open items",
       icon: WalletCards,
       tone: "bg-slate-100 text-slate-700",
-    },
+    }] : []),
   ];
   const quick = admin
     ? [
@@ -300,14 +300,14 @@ export function DashboardPage() {
             </ResponsiveContainer>
           </div>
         </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        {admin && <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="font-bold text-slate-900">Revenue Overview</h3>
           <p className="mt-1 text-sm text-slate-500">
             Registration fees collected
           </p>
           <div className="mt-5 h-56">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={data.registrationTrend}>
+              <AreaChart data={data.financial?.revenueTrend || []}>
                 <CartesianGrid vertical={false} stroke="#e2e8f0" />
                 <XAxis
                   dataKey="date"
@@ -328,7 +328,7 @@ export function DashboardPage() {
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </article>
+        </article>}
         <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
           <h3 className="font-bold text-slate-900">Recent Activity</h3>
           <div className="mt-4 space-y-4">
@@ -447,4 +447,10 @@ export function DashboardPage() {
       </section>
     </div>
   );
+}
+
+export function DashboardPage() {
+  const { user } = useAuth();
+  if (user?.roles.includes("SURGERY_ATTENDANT")) return <SurgeryPage />;
+  return <OperationalDashboard />;
 }
