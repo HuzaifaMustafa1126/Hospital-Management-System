@@ -227,6 +227,39 @@ export async function initializeDatabase({ log = false } = {}) {
       await connection.query(
         "ALTER TABLE registration_payments ADD COLUMN fee_type ENUM('FREE','DISCOUNTED') NOT NULL DEFAULT 'DISCOUNTED' AFTER amount",
       );
+    await connection.query(
+      `CREATE TABLE IF NOT EXISTS patient_visits (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_id BIGINT UNSIGNED NOT NULL, visit_number INT UNSIGNED NOT NULL, visit_date DATE NOT NULL, doctor_id BIGINT UNSIGNED NULL, created_by VARCHAR(191) NULL, status ENUM('OPEN','COMPLETED','CANCELLED') NOT NULL DEFAULT 'OPEN', created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY uq_patient_visits_number (patient_id, visit_number), KEY idx_patient_visits_patient_date (patient_id, visit_date), CONSTRAINT patient_visits_patient_fkey FOREIGN KEY (patient_id) REFERENCES patients(id), CONSTRAINT patient_visits_doctor_fkey FOREIGN KEY (doctor_id) REFERENCES doctors(id), CONSTRAINT patient_visits_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    );
+    const [serviceVisit] = await connection.query(
+      "SHOW COLUMNS FROM patient_services LIKE 'visit_id'",
+    );
+    if (!serviceVisit.length)
+      await connection.query(
+        "ALTER TABLE patient_services ADD COLUMN visit_id BIGINT UNSIGNED NULL AFTER patient_id, ADD KEY idx_patient_services_visit (visit_id), ADD CONSTRAINT patient_services_visit_fkey FOREIGN KEY (visit_id) REFERENCES patient_visits(id)",
+      );
+    const [paymentVisit] = await connection.query(
+      "SHOW COLUMNS FROM registration_payments LIKE 'visit_id'",
+    );
+    if (!paymentVisit.length) {
+      await connection.query(
+        "ALTER TABLE registration_payments ADD COLUMN visit_id BIGINT UNSIGNED NULL AFTER patient_id, ADD KEY idx_registration_payments_visit (visit_id), ADD CONSTRAINT registration_payments_visit_fkey FOREIGN KEY (visit_id) REFERENCES patient_visits(id)",
+      );
+      await connection.query(
+        "ALTER TABLE registration_payments DROP INDEX registration_payments_patient_unique",
+      );
+      await connection.query(
+        "ALTER TABLE registration_payments ADD UNIQUE KEY uq_registration_payments_visit (visit_id)",
+      );
+    }
+    await connection.query(
+      `INSERT IGNORE INTO patient_visits (patient_id, visit_number, visit_date, doctor_id, created_by) SELECT p.id, 1, DATE(p.created_at), p.doctor_id, p.created_by FROM patients p`,
+    );
+    await connection.query(
+      `UPDATE patient_services ps JOIN patient_visits v ON v.patient_id=ps.patient_id AND v.visit_number=1 SET ps.visit_id=v.id WHERE ps.visit_id IS NULL`,
+    );
+    await connection.query(
+      `UPDATE registration_payments rp JOIN patient_visits v ON v.patient_id=rp.patient_id AND v.visit_number=1 SET rp.visit_id=v.id WHERE rp.visit_id IS NULL`,
+    );
     if (log) console.log("Tables verified.");
     await seedAccessControl(connection);
     if (log) {

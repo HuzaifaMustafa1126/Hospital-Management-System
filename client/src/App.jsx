@@ -21,6 +21,7 @@ import { RegistrationFeeSettingsPage } from "./pages/RegistrationFeeSettingsPage
 import { ServicesPage } from "./pages/ServicesPage";
 import { SurgeryPage } from "./pages/SurgeryPage";
 import { UserDetailPage } from "./pages/UserDetailPage";
+import { VisitDetailPage } from "./pages/VisitDetailPage";
 import { UsersPage } from "./pages/UsersPage";
 
 export function App() {
@@ -44,6 +45,7 @@ export function App() {
             >
               <Route path="/patients" element={<PatientListPage />} />
               <Route path="/patients/:id" element={<PatientDetailPage />} />
+              <Route path="/visits/:id" element={<VisitDetailPage />} />
 
               <Route path="/reception/patients" element={<PatientListPage />} />
 

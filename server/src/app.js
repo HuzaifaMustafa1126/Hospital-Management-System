@@ -16,6 +16,7 @@ import { serviceRouter } from "./routes/service.routes.js";
 import { userRouter } from "./routes/user.routes.js";
 import { laboratoryRouter } from "./routes/laboratory.routes.js";
 import { surgeryRouter } from "./routes/surgery.routes.js";
+import { visitRouter } from "./routes/visit.routes.js";
 
 export const app = express();
 
@@ -44,6 +45,7 @@ app.use("/api/v1/departments", departmentRouter);
 app.use("/api/v1/services", serviceRouter);
 app.use("/api/v1/dashboard", dashboardRouter);
 app.use("/api/v1/patients", patientRouter);
+app.use("/api/v1/visits", visitRouter);
 app.use("/api/v1/settings", settingsRouter);
 app.use("/api/v1/registration-payments", registrationPaymentRouter);
 app.use("/api/v1/laboratory", laboratoryRouter);

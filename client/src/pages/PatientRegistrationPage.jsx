@@ -150,6 +150,18 @@ export function PatientRegistrationPage() {
       setSaving(false);
     }
   };
+  const createVisit = async (patient) => {
+    try {
+      const response = await patientService.createVisit(patient.id);
+      navigate(`/patients/${patient.id}`, {
+        state: { visitCreated: response.data.data.visitNumber },
+      });
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.message || "Unable to create a new visit.",
+      );
+    }
+  };
 
   if (result) {
     const { patient, payment } = result;
@@ -254,6 +266,13 @@ export function PatientRegistrationPage() {
                 >
                   View Patient
                 </Link>
+                <button
+                  type="button"
+                  className="ml-3 font-bold underline"
+                  onClick={() => createVisit(duplicates[name].patient)}
+                >
+                  Create New Visit
+                </button>
               </span>
             )}
             {duplicates[name] && !duplicates[name].exists && (
