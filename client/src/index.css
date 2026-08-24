@@ -35,6 +35,62 @@
   display: none;
 }
 
+@keyframes hms-modal-overlay-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes hms-modal-card-in {
+  from { opacity: 0; transform: scale(0.96) translateY(5px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes hms-modal-overlay-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+@keyframes hms-modal-card-out {
+  from { opacity: 1; transform: scale(1) translateY(0); }
+  to { opacity: 0; transform: scale(0.97) translateY(4px); }
+}
+@keyframes hms-toast-in {
+  from { opacity: 0; transform: translateX(16px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+@keyframes hms-toast-out {
+  from { opacity: 1; transform: translateX(0); }
+  to { opacity: 0; transform: translateX(16px); }
+}
+@keyframes hms-toast-progress {
+  from { transform: scaleX(1); }
+  to { transform: scaleX(0); }
+}
+
+.hms-modal-overlay { animation: hms-modal-overlay-in 200ms ease-out both; }
+.hms-modal-card { animation: hms-modal-card-in 220ms ease-out both; }
+.hms-modal-overlay-closing { animation: hms-modal-overlay-out 180ms ease-in both; }
+.hms-modal-card-closing { animation: hms-modal-card-out 180ms ease-in both; }
+.hms-toast { animation: hms-toast-in 240ms ease-out both; }
+.hms-toast-closing { animation: hms-toast-out 200ms ease-in both; }
+.hms-toast-progress { animation: hms-toast-progress linear both; }
+
+@media (max-width: 639px) {
+  @keyframes hms-toast-in {
+    from { opacity: 0; transform: translateY(-14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes hms-toast-out {
+    from { opacity: 1; transform: translateY(0); }
+    to { opacity: 0; transform: translateY(-14px); }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hms-modal-overlay,
+  .hms-modal-card,
+  .hms-toast,
+  .hms-toast-closing { animation-duration: 1ms; transform: none; }
+  .hms-toast-progress { animation: none; }
+}
+
 @layer components {
   .hms-card {
     @apply rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_10px_rgba(15,23,42,0.035)];

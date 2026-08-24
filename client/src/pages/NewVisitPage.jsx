@@ -5,12 +5,14 @@ import { doctorService } from "../services/doctor.service";
 import { patientService } from "../services/patient.service";
 import { serviceService } from "../services/service.service";
 import { settingsService } from "../services/settings.service";
+import { useNotifications } from "../context/NotificationContext";
 
 const money = (amount) => `PKR ${Number(amount || 0).toLocaleString()}`;
 
 export function NewVisitPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { notify } = useNotifications();
   const [patient, setPatient] = useState(null);
   const [doctors, setDoctors] = useState([]);
   const [services, setServices] = useState([]);
@@ -57,6 +59,7 @@ export function NewVisitPage() {
         doctorId: Number(form.doctorId), paymentMethod: form.paymentMethod,
         feeType: form.feeType, visitFee: feeAmount, serviceIds: selectedIds,
       });
+      notify({ type: "success", title: "Visit Created", message: `Visit #${response.data.data.visitNumber} was created successfully.` });
       navigate(`/visits/${response.data.data.id}`, { state: { created: true } });
     } catch (requestError) {
       setError(requestError.response?.data?.message || "Unable to create visit.");

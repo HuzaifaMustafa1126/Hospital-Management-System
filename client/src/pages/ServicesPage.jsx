@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { departmentService } from "../services/department.service";
 import { serviceService } from "../services/service.service";
+import { useNotifications } from "../context/NotificationContext";
 
 const blank = {
   name: "",
@@ -40,6 +41,7 @@ const DepartmentIcon = ({ name, size = 19 }) => {
   return <Icon size={size} />;
 };
 export function ServicesPage() {
+  const { confirm, notify } = useNotifications();
   const [data, setData] = useState({ services: [], pagination: {} });
   const [departments, setDepartments] = useState([]);
   const [filters, setFilters] = useState({
@@ -96,6 +98,7 @@ export function ServicesPage() {
       };
       if (form.id) await serviceService.update(form.id, payload);
       else await serviceService.create(payload);
+      notify({ type: "success", title: form.id ? "Service Updated" : "Service Created", message: `${form.name} was saved successfully.` });
       setForm(null);
       setError("");
       await load();
@@ -105,16 +108,18 @@ export function ServicesPage() {
   };
   const changeStatus = async (service) => {
     const action = service.isActive ? "Deactivate" : "Activate";
-    if (
-      !window.confirm(
-        service.isActive
-          ? "Deactivate this service? It will no longer be available for new patient service requests."
-          : "Activate this service? It will become available for new patient service requests.",
-      )
-    )
-      return;
+    const approved = await confirm({
+      title: `${action} Service?`,
+      message: service.isActive
+        ? "This service will no longer be available for new patient service requests."
+        : "This service will become available for new patient service requests.",
+      confirmLabel: action,
+      tone: service.isActive ? "danger" : "warning",
+    });
+    if (!approved) return;
     try {
       await serviceService.status(service.id, !service.isActive);
+      notify({ type: "success", title: "Service Updated", message: `${service.name} is now ${service.isActive ? "inactive" : "active"}.` });
       await load();
     } catch (e) {
       setError(

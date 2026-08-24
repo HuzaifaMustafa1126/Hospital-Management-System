@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2 } from "lucide-react";
 import { doctorService } from "../services/doctor.service";
 import { patientService } from "../services/patient.service";
 import { settingsService } from "../services/settings.service";
+import { useNotifications } from "../context/NotificationContext";
 
 const empty = {
   firstName: "",
@@ -25,6 +26,7 @@ const cnic = (value) => {
 
 export function PatientRegistrationPage() {
   const navigate = useNavigate();
+  const { notify } = useNotifications();
 
   const [form, setForm] = useState(empty);
   const [doctors, setDoctors] = useState([]);
@@ -144,6 +146,11 @@ export function PatientRegistrationPage() {
       });
 
       setResult(r.data.data);
+      notify({
+        type: "success",
+        title: "Patient Registered",
+        message: `Patient ${r.data.data.patient.patientNumber} was registered successfully.`,
+      });
     } catch (e) {
       setError(e.response?.data?.message || "Unable to register patient.");
     } finally {

@@ -2,11 +2,13 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ArrowLeft, Plus, Scissors, X } from "lucide-react";
 import { surgeryService } from "../services/surgery.service";
+import { useNotifications } from "../context/NotificationContext";
 
 const money = (amount) => `PKR ${Number(amount || 0).toLocaleString("en-PK")}`;
 const Info = ({ label, value }) => <div><dt className="hms-label">{label}</dt><dd className="mt-1 text-sm font-medium text-slate-800">{value || "—"}</dd></div>;
 
 export function SurgeryPatientPage() {
+  const { notify } = useNotifications();
   const { id } = useParams();
   const [patient, setPatient] = useState(null);
   const [available, setAvailable] = useState([]);
@@ -24,7 +26,7 @@ export function SurgeryPatientPage() {
   const quantity = Number(form.quantity);
   const total = selected && Number.isInteger(quantity) && quantity > 0 ? selected.price * quantity : 0;
   const review = (event) => { event.preventDefault(); setError(""); if (!selected) return setError("Select a Surgery service."); if (!Number.isInteger(quantity) || quantity < 1) return setError("Quantity must be a positive whole number."); setConfirming(true); };
-  const submit = async () => { setSaving(true); try { await surgeryService.addService(id, { serviceId: selected.id, quantity, notes: form.notes }); setOpen(false); setConfirming(false); setForm({ serviceId: "", quantity: 1, notes: "" }); setMessage("Surgery service added successfully."); setError(""); await load(); } catch (requestError) { setError(requestError.response?.data?.message || "Unable to add Surgery service."); setConfirming(false); } finally { setSaving(false); } };
+  const submit = async () => { setSaving(true); try { await surgeryService.addService(id, { serviceId: selected.id, quantity, notes: form.notes }); notify({ type: "success", title: "Surgery Service Added", message: `${selected.name} was added successfully.` }); setOpen(false); setConfirming(false); setForm({ serviceId: "", quantity: 1, notes: "" }); setMessage("Surgery service added successfully."); setError(""); await load(); } catch (requestError) { setError(requestError.response?.data?.message || "Unable to add Surgery service."); setConfirming(false); } finally { setSaving(false); } };
   return <div className="mx-auto max-w-6xl space-y-5">
     <Link className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600" to="/surgery/patients"><ArrowLeft size={16}/> Back to Surgery patient search</Link>
     {message && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">{message}</p>}
