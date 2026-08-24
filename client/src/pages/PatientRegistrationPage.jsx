@@ -150,18 +150,7 @@ export function PatientRegistrationPage() {
       setSaving(false);
     }
   };
-  const createVisit = async (patient) => {
-    try {
-      const response = await patientService.createVisit(patient.id);
-      navigate(`/patients/${patient.id}`, {
-        state: { visitCreated: response.data.data.visitNumber },
-      });
-    } catch (requestError) {
-      setError(
-        requestError.response?.data?.message || "Unable to create a new visit.",
-      );
-    }
-  };
+  const createVisit = (patient) => navigate(`/patients/${patient.id}/visits/new`);
 
   if (result) {
     const { patient, payment } = result;
@@ -259,6 +248,10 @@ export function PatientRegistrationPage() {
                 </span>
                 <span className="mt-1 block font-semibold">
                   Patient No: {duplicates[name].patient.patientNumber}
+                </span>
+                <span className="mt-1 block">
+                  {duplicates[name].patient.firstName} {duplicates[name].patient.lastName} · {duplicates[name].patient.totalVisits} visit(s)
+                  {duplicates[name].patient.lastVisit ? ` · Last visit: ${new Date(duplicates[name].patient.lastVisit).toLocaleDateString()}` : ""}
                 </span>
                 <Link
                   className="mt-2 inline-block font-bold underline"

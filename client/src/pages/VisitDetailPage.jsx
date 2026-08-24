@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays } from "lucide-react";
+import { ArrowLeft, CalendarDays, Printer } from "lucide-react";
 import { patientService } from "../services/patient.service";
 export function VisitDetailPage() {
   const { id } = useParams();
@@ -33,6 +33,11 @@ export function VisitDetailPage() {
           <CalendarDays size={16} />
           {new Date(visit.visitDate).toLocaleDateString()} · {visit.doctorName}
         </p>
+        <dl className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-3">
+          <div><dt className="hms-label">Patient</dt><dd className="mt-1 font-semibold">{visit.patientName}</dd></div>
+          <div><dt className="hms-label">Patient ID</dt><dd className="mt-1 font-semibold">{visit.patientNumber}</dd></div>
+          <div><dt className="hms-label">CNIC</dt><dd className="mt-1 font-semibold">{visit.patientCnic}</dd></div>
+        </dl>
       </section>
       <section className="hms-card p-6">
         <h3 className="font-bold">Services</h3>
@@ -65,6 +70,12 @@ export function VisitDetailPage() {
             No registration fee recorded for this visit.
           </p>
         )}
+        <div className="mt-6 border-t border-slate-200 pt-4">
+          <div className="flex justify-between text-sm"><span>Visit fee</span><b>{visit.feeType === "FREE" ? "FREE" : `PKR ${visit.visitFee}`}</b></div>
+          <div className="mt-2 flex justify-between text-sm"><span>Services total</span><b>PKR {visit.servicesTotal}</b></div>
+          <div className="mt-3 flex justify-between text-lg"><b>Total</b><b>PKR {visit.total}</b></div>
+        </div>
+        <button type="button" onClick={() => window.print()} className="hms-button-primary mt-6 print:hidden"><Printer size={16} /> Print Bill</button>
       </section>
     </div>
   );

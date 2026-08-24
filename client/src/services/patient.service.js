@@ -7,7 +7,7 @@ export const patientService = {
     api.get("/patients/check-phone", { params: { phone } }),
   get: (id) => api.get(`/patients/${id}`),
   visits: (id) => api.get(`/patients/${id}/visits`),
-  createVisit: (id) => api.post(`/patients/${id}/visits`),
+  createVisit: (id, data) => api.post(`/patients/${id}/visits`, data),
   getVisit: (id) => api.get(`/visits/${id}`),
   create: (data) => api.post("/patients", data),
   update: (id, data) => api.put(`/patients/${id}`, data),

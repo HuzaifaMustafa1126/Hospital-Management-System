@@ -108,7 +108,7 @@ async function findDuplicate(
   const column = field === "cnic" ? "cnic" : "phone";
   const values = excludeId ? [value, excludeId] : [value];
   const [rows] = await connection.execute(
-    `SELECT id, patient_number AS patientNumber, first_name AS firstName, last_name AS lastName FROM patients WHERE ${column} = ? AND is_active = TRUE${excludeId ? " AND id != ?" : ""} LIMIT 1`,
+    `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.cnic, p.phone, (SELECT MAX(v.visit_date) FROM patient_visits v WHERE v.patient_id=p.id) AS lastVisit, (SELECT COUNT(*) FROM patient_visits v WHERE v.patient_id=p.id) AS totalVisits FROM patients p WHERE p.${column} = ? AND p.is_active = TRUE${excludeId ? " AND p.id != ?" : ""} LIMIT 1`,
     values,
   );
   return rows[0] || null;
@@ -186,7 +186,7 @@ export const patientService = {
       if (!Number.isFinite(configuredFee) || configuredFee < 0)
         throw new AppError(500, "Registration fee is not configured correctly");
       const feeType = data.feeType || "FREE";
-      const amount = feeType === "FREE" ? 0 : Number(data.registrationFee);
+      const amount = feeType === "FREE" ? 0 : feeType === "ACTUAL" ? configuredFee : Number(data.registrationFee);
       if (
         feeType === "DISCOUNTED" &&
         (!Number.isFinite(amount) || amount < 0 || amount > configuredFee)

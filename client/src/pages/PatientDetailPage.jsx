@@ -305,21 +305,12 @@ export function PatientDetailPage({ edit = false }) {
           <section className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex items-center justify-between">
               <h3 className="font-bold text-slate-800">Visit History</h3>
-              <button
+              <Link
                 className="text-sm font-semibold text-teal-700"
-                onClick={async () => {
-                  try {
-                    const r = await patientService.createVisit(id);
-                    setVisits((items) => [r.data.data, ...items]);
-                  } catch (e) {
-                    setError(
-                      e.response?.data?.message || "Unable to create visit.",
-                    );
-                  }
-                }}
+                to={`/patients/${id}/visits/new`}
               >
-                Create New Visit
-              </button>
+                + Visit Again
+              </Link>
             </div>
             {visits.length ? (
               <div className="mt-3 space-y-2">
@@ -328,11 +319,14 @@ export function PatientDetailPage({ edit = false }) {
                     key={visit.id}
                     className="flex items-center justify-between rounded-lg bg-slate-50 p-3 text-sm"
                   >
-                    <span>
+                    <span className="min-w-0">
                       <b>#{visit.visitNumber}</b>
-                      <small className="ml-2 text-slate-500">
+                      <small className="ml-2 block text-slate-500 sm:inline">
                         {new Date(visit.visitDate).toLocaleDateString()} ·{" "}
                         {visit.doctorName}
+                      </small>
+                      <small className="mt-1 block text-slate-500">
+                        Fee: {visit.feeType === "FREE" ? "FREE" : `PKR ${visit.visitFee}`} · Services: {visit.servicesCount} · Total: PKR {visit.total}
                       </small>
                     </span>
                     <button

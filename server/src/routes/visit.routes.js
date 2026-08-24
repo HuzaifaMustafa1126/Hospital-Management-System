@@ -17,6 +17,6 @@ patientVisitRouter.use(authenticate, requirePermission("PATIENT_VIEW"));
 patientVisitRouter.get("/:id/visits", asyncHandler(visitController.list));
 patientVisitRouter.post(
   "/:id/visits",
-  requirePermission("PATIENT_CREATE"),
+  requirePermission("PATIENT_CREATE", "REGISTRATION_FEE_COLLECT"),
   asyncHandler(visitController.create),
 );
