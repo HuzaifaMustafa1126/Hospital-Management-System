@@ -36,50 +36,112 @@
 }
 
 @keyframes hms-modal-overlay-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 @keyframes hms-modal-card-in {
-  from { opacity: 0; transform: scale(0.96) translateY(5px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 @keyframes hms-modal-overlay-out {
-  from { opacity: 1; }
-  to { opacity: 0; }
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
 }
 @keyframes hms-modal-card-out {
-  from { opacity: 1; transform: scale(1) translateY(0); }
-  to { opacity: 0; transform: scale(0.97) translateY(4px); }
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97) translateY(4px);
+  }
 }
 @keyframes hms-toast-in {
-  from { opacity: 0; transform: translateX(16px); }
-  to { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 @keyframes hms-toast-out {
-  from { opacity: 1; transform: translateX(0); }
-  to { opacity: 0; transform: translateX(16px); }
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(16px);
+  }
 }
 @keyframes hms-toast-progress {
-  from { transform: scaleX(1); }
-  to { transform: scaleX(0); }
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
 }
 
-.hms-modal-overlay { animation: hms-modal-overlay-in 200ms ease-out both; }
-.hms-modal-card { animation: hms-modal-card-in 220ms ease-out both; }
-.hms-modal-overlay-closing { animation: hms-modal-overlay-out 180ms ease-in both; }
-.hms-modal-card-closing { animation: hms-modal-card-out 180ms ease-in both; }
-.hms-toast { animation: hms-toast-in 240ms ease-out both; }
-.hms-toast-closing { animation: hms-toast-out 200ms ease-in both; }
-.hms-toast-progress { animation: hms-toast-progress linear both; }
+.hms-modal-overlay {
+  animation: hms-modal-overlay-in 200ms ease-out both;
+}
+.hms-modal-card {
+  animation: hms-modal-card-in 220ms ease-out both;
+}
+.hms-modal-overlay-closing {
+  animation: hms-modal-overlay-out 180ms ease-in both;
+}
+.hms-modal-card-closing {
+  animation: hms-modal-card-out 180ms ease-in both;
+}
+.hms-toast {
+  animation: hms-toast-in 240ms ease-out both;
+}
+.hms-toast-closing {
+  animation: hms-toast-out 200ms ease-in both;
+}
+.hms-toast-progress {
+  animation: hms-toast-progress linear both;
+}
 
 @media (max-width: 639px) {
   @keyframes hms-toast-in {
-    from { opacity: 0; transform: translateY(-14px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(-14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
   @keyframes hms-toast-out {
-    from { opacity: 1; transform: translateY(0); }
-    to { opacity: 0; transform: translateY(-14px); }
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-14px);
+    }
   }
 }
 
@@ -87,8 +149,646 @@
   .hms-modal-overlay,
   .hms-modal-card,
   .hms-toast,
-  .hms-toast-closing { animation-duration: 1ms; transform: none; }
-  .hms-toast-progress { animation: none; }
+  .hms-toast-closing {
+    animation-duration: 1ms;
+    transform: none;
+  }
+  .hms-toast-progress {
+    animation: none;
+  }
+}
+
+/* Professional invoice and receipt documents */
+.print-document {
+  box-sizing: border-box;
+  color: #172033;
+  background: #fff;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+.invoice-sheet {
+  position: relative;
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 14mm 15mm 12mm;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.14);
+}
+.invoice-accent {
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4mm;
+  background: linear-gradient(90deg, #0f766e 0 68%, #0ea5a4 68% 100%);
+}
+.invoice-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(55mm, 0.75fr);
+  gap: 10mm;
+  align-items: start;
+  padding: 7mm 0 8mm;
+  border-bottom: 1px solid #cbd5e1;
+}
+.print-brand {
+  display: flex;
+  align-items: center;
+  gap: 4mm;
+}
+.print-logo {
+  width: 17mm;
+  height: 17mm;
+  object-fit: contain;
+  flex: none;
+}
+.print-logo-fallback {
+  display: grid;
+  width: 15mm;
+  height: 15mm;
+  flex: none;
+  place-items: center;
+  border-radius: 4mm;
+  background: #0f766e;
+  color: white;
+  font-size: 7mm;
+  font-weight: 800;
+}
+.print-hospital-name {
+  margin: 0;
+  color: #0f172a;
+  font-size: 6mm;
+  font-weight: 800;
+  line-height: 1.15;
+}
+.print-hospital-short {
+  margin: 1mm 0 0;
+  color: #0f766e;
+  font-size: 2.8mm;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.invoice-contact {
+  margin-top: 4mm;
+  color: #526177;
+  font-size: 2.8mm;
+  line-height: 1.6;
+}
+.invoice-contact p {
+  margin: 0;
+}
+.invoice-heading {
+  text-align: right;
+}
+.invoice-type {
+  margin: 0;
+  color: #0f766e;
+  font-size: 3.2mm;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+}
+.invoice-heading h1 {
+  margin: 1.5mm 0 3mm;
+  color: #0f172a;
+  font-size: 6mm;
+  font-weight: 800;
+}
+.invoice-heading dl {
+  margin: 0 0 3mm auto;
+}
+.print-detail {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+  gap: 3mm;
+  margin: 1.2mm 0;
+}
+.print-detail dt {
+  color: #64748b;
+  font-size: 2.7mm;
+}
+.print-detail dd {
+  min-width: 0;
+  margin: 0;
+  color: #1e293b;
+  font-size: 2.8mm;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.invoice-heading .print-detail dt,
+.invoice-heading .print-detail dd {
+  text-align: right;
+}
+.print-status {
+  display: inline-block;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 1.2mm 3mm;
+  font-size: 2.5mm;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.print-status-paid {
+  color: #047857;
+  background: #ecfdf5;
+}
+.print-status-partial {
+  color: #a16207;
+  background: #fffbeb;
+}
+.print-status-unpaid {
+  color: #be123c;
+  background: #fff1f2;
+}
+.invoice-information {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12mm;
+  padding: 8mm 0;
+}
+.invoice-information > div {
+  border-left: 1.2mm solid #0f766e;
+  padding-left: 4mm;
+}
+.invoice-information h2,
+.payment-summary h2,
+.invoice-payments h2 {
+  margin: 0 0 3mm;
+  color: #0f766e;
+  font-size: 2.8mm;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+}
+.invoice-information .print-detail {
+  grid-template-columns: 31mm 1fr;
+}
+.invoice-items-section {
+  break-inside: auto;
+}
+.invoice-items {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+.invoice-items thead {
+  display: table-header-group;
+}
+.invoice-items th {
+  padding: 3mm 2.5mm;
+  background: #0f766e;
+  color: white;
+  font-size: 2.6mm;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-align: left;
+  text-transform: uppercase;
+}
+.invoice-items th:first-child {
+  width: 35%;
+}
+.invoice-items th:nth-child(2) {
+  width: 22%;
+}
+.invoice-items th:nth-child(3) {
+  width: 8%;
+}
+.invoice-items th:nth-child(4),
+.invoice-items th:nth-child(5) {
+  width: 17.5%;
+}
+.invoice-items td {
+  padding: 3.2mm 2.5mm;
+  border-bottom: 1px solid #e2e8f0;
+  color: #334155;
+  font-size: 2.75mm;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+.invoice-items td b {
+  display: block;
+  color: #172033;
+}
+.invoice-items td small {
+  display: block;
+  margin-top: 0.6mm;
+  color: #64748b;
+  font-size: 2.3mm;
+}
+.invoice-items tr {
+  break-inside: avoid;
+}
+.number-column {
+  white-space: nowrap;
+  text-align: right !important;
+}
+.invoice-summary-row {
+  display: grid;
+  grid-template-columns: 1fr 72mm;
+  gap: 12mm;
+  align-items: start;
+  margin-top: 8mm;
+  break-inside: avoid;
+}
+.payment-summary {
+  padding: 4mm;
+  border: 1px solid #dbe4ea;
+  border-radius: 3mm;
+  background: #f8fafc;
+}
+.payment-summary .print-detail {
+  grid-template-columns: 30mm 1fr;
+}
+.invoice-totals {
+  border-top: 1mm solid #0f766e;
+  padding-top: 3mm;
+}
+.invoice-totals p {
+  display: flex;
+  justify-content: space-between;
+  gap: 5mm;
+  margin: 2mm 0;
+  color: #475569;
+  font-size: 3mm;
+}
+.invoice-totals p b {
+  color: #172033;
+  white-space: nowrap;
+}
+.invoice-totals .grand-total {
+  margin-top: 3mm;
+  padding-top: 3mm;
+  border-top: 1px solid #94a3b8;
+  color: #0f172a;
+  font-size: 3.6mm;
+  text-transform: uppercase;
+}
+.invoice-totals .print-status {
+  margin-top: 2mm;
+}
+.invoice-payments {
+  margin-top: 9mm;
+  break-inside: avoid;
+}
+.invoice-payments table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.invoice-payments th,
+.invoice-payments td {
+  padding: 2.2mm;
+  border-bottom: 1px solid #e2e8f0;
+  font-size: 2.5mm;
+  text-align: left;
+}
+.invoice-payments th {
+  color: #64748b;
+  text-transform: uppercase;
+}
+.invoice-footer {
+  margin-top: 12mm;
+  padding-top: 4mm;
+  border-top: 1px solid #cbd5e1;
+  color: #64748b;
+  font-size: 2.6mm;
+  line-height: 1.6;
+  text-align: center;
+  break-inside: avoid;
+}
+.invoice-footer p {
+  margin: 0.5mm 0;
+}
+
+.thermal-receipt {
+  margin: 0 auto;
+  padding: 4mm;
+  color: #111827;
+  background: white;
+  box-shadow: 0 14px 40px rgba(15, 23, 42, 0.14);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 3mm;
+  line-height: 1.4;
+}
+.print-80 {
+  width: 80mm;
+}
+.print-58 {
+  width: 58mm;
+  padding: 3mm;
+  font-size: 2.65mm;
+}
+.thermal-header {
+  text-align: center;
+}
+.thermal-header .print-brand {
+  justify-content: center;
+}
+.print-brand-compact {
+  flex-direction: column;
+  gap: 2mm;
+  text-align: center;
+}
+.print-brand-compact .print-logo,
+.print-brand-compact .print-logo-fallback {
+  width: 12mm;
+  height: 12mm;
+}
+.print-brand-compact .print-hospital-name {
+  font-size: 4mm;
+}
+.thermal-header p,
+.thermal-receipt footer p {
+  margin: 0.5mm 0;
+  overflow-wrap: anywhere;
+}
+.thermal-divider {
+  margin: 3mm 0;
+  border-top: 0.3mm dashed #475569;
+}
+.thermal-receipt > h1 {
+  margin: 2mm 0 3mm;
+  font-size: 4.2mm;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+.thermal-meta .print-detail {
+  grid-template-columns: 18mm 1fr;
+  margin: 1mm 0;
+}
+.print-58 .thermal-meta .print-detail {
+  grid-template-columns: 14mm 1fr;
+}
+.thermal-meta .print-detail dt,
+.thermal-meta .print-detail dd {
+  font-size: inherit;
+}
+.thermal-item {
+  margin: 2mm 0;
+  break-inside: avoid;
+}
+.thermal-item > b {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.thermal-item p,
+.thermal-totals p {
+  display: flex;
+  justify-content: space-between;
+  gap: 2mm;
+  margin: 0.7mm 0;
+}
+.thermal-item strong,
+.thermal-totals b {
+  white-space: nowrap;
+}
+.thermal-item span {
+  color: #475569;
+}
+.thermal-totals {
+  font-size: 3.2mm;
+}
+.print-58 .thermal-totals {
+  font-size: 2.8mm;
+}
+.thermal-status {
+  margin: 3mm 0 0;
+  border: 0.3mm solid currentColor;
+  padding: 1.5mm;
+  font-weight: 800;
+  text-align: center;
+}
+.thermal-receipt footer {
+  text-align: center;
+}
+
+.payment-receipt-a4 {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 20mm;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.14);
+}
+.payment-receipt-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8mm;
+  padding-bottom: 7mm;
+  border-bottom: 1mm solid #0f766e;
+}
+.payment-receipt-contact {
+  color: #64748b;
+  font-size: 2.8mm;
+  line-height: 1.5;
+  text-align: right;
+}
+.payment-receipt-contact p {
+  margin: 0;
+}
+.payment-receipt-title {
+  margin: 8mm 0;
+  text-align: center;
+}
+.payment-receipt-title p {
+  margin: 0;
+  color: #0f766e;
+  font-size: 3mm;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+.payment-receipt-title h1 {
+  margin: 2mm 0 0;
+  color: #0f172a;
+  font-size: 7mm;
+}
+.payment-receipt-details {
+  width: min(120mm, 100%);
+  margin: 0 auto;
+  padding: 6mm;
+  border: 1px solid #dbe4ea;
+  border-radius: 4mm;
+  background: #f8fafc;
+}
+.payment-receipt-row {
+  display: grid;
+  grid-template-columns: 42% 58%;
+  gap: 3mm;
+  padding: 2.2mm 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+.payment-receipt-row:last-child {
+  border-bottom: 0;
+}
+.payment-receipt-row dt {
+  color: #64748b;
+}
+.payment-receipt-row dd {
+  margin: 0;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+}
+.payment-receipt-strong {
+  color: #0f766e;
+  font-size: 1.15em;
+  font-weight: 800 !important;
+}
+.payment-receipt-footer {
+  margin-top: 10mm;
+  color: #64748b;
+  font-size: 2.8mm;
+  line-height: 1.6;
+  text-align: center;
+}
+.thermal-receipt.payment-receipt .payment-receipt-header {
+  display: block;
+  padding: 0;
+  border: 0;
+}
+.thermal-receipt.payment-receipt .payment-receipt-contact {
+  margin-top: 2mm;
+  font-size: inherit;
+  text-align: center;
+}
+.thermal-receipt.payment-receipt .payment-receipt-contact p {
+  margin: 0.5mm 0;
+}
+.thermal-receipt.payment-receipt .payment-receipt-title {
+  margin: 3mm 0;
+}
+.thermal-receipt.payment-receipt .payment-receipt-title p {
+  font-size: inherit;
+}
+.thermal-receipt.payment-receipt .payment-receipt-title h1 {
+  font-size: 4mm;
+}
+.thermal-receipt.payment-receipt .payment-receipt-details {
+  width: auto;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+.thermal-receipt.payment-receipt .payment-receipt-row {
+  grid-template-columns: 40% 60%;
+  gap: 2mm;
+  padding: 1.2mm 0;
+  border-bottom: 0.3mm dotted #94a3b8;
+}
+.thermal-receipt.payment-receipt .payment-receipt-footer {
+  margin-top: 5mm;
+  font-size: inherit;
+}
+
+@page hms-a4 {
+  size: A4 portrait;
+  margin: 10mm;
+}
+@page hms-80 {
+  size: 80mm auto;
+  margin: 0;
+}
+@page hms-58 {
+  size: 58mm auto;
+  margin: 0;
+}
+
+@media print {
+  html,
+  body {
+    margin: 0 !important;
+    padding: 0 !important;
+    background: white !important;
+  }
+  body > #root > div,
+  body > #root > div > main,
+  body > #root > div > main > section,
+  .print-preview-page,
+  .print-preview-scroll {
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+  body > #root > div > aside,
+  body > #root > div > main > header {
+    display: none !important;
+  }
+  body * {
+    visibility: hidden !important;
+  }
+  #print-root,
+  #print-root * {
+    visibility: visible !important;
+  }
+  #print-root {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    box-shadow: none !important;
+    animation: none !important;
+    transition: none !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  #print-root.print-a4 {
+    page: hms-a4;
+    width: 190mm !important;
+    padding: 0 !important;
+  }
+  #print-root.print-a4 .invoice-header {
+    padding: 4mm 0 5mm;
+  }
+  #print-root.print-a4 .invoice-contact {
+    margin-top: 2mm;
+    line-height: 1.4;
+  }
+  #print-root.print-a4 .invoice-information {
+    padding: 5mm 0;
+  }
+  #print-root.print-a4 .invoice-items th {
+    padding-block: 2mm;
+  }
+  #print-root.print-a4 .invoice-items td {
+    padding-block: 2.1mm;
+  }
+  #print-root.print-a4 .invoice-summary-row {
+    margin-top: 5mm;
+  }
+  #print-root.print-a4 .payment-summary {
+    padding: 3mm;
+  }
+  #print-root.print-a4 .invoice-payments {
+    margin-top: 5mm;
+  }
+  #print-root.print-a4 .invoice-payments th,
+  #print-root.print-a4 .invoice-payments td {
+    padding-block: 1.5mm;
+  }
+  #print-root.print-a4 .invoice-footer {
+    margin-top: 5mm;
+    padding-top: 2.5mm;
+    line-height: 1.4;
+  }
+  #print-root.print-80 {
+    page: hms-80;
+    width: 80mm !important;
+  }
+  #print-root.print-58 {
+    page: hms-58;
+    width: 58mm !important;
+  }
+  .invoice-items thead {
+    display: table-header-group;
+  }
+  .invoice-items tr,
+  .invoice-summary-row,
+  .invoice-footer,
+  .payment-receipt-details {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .no-print,
+  .hms-modal-overlay,
+  [aria-label="Notifications"] {
+    display: none !important;
+  }
 }
 
 @layer components {

@@ -1,11 +1,26 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, CreditCard } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import {
+  ArrowLeft,
+  CalendarDays,
+  CreditCard,
+  Printer,
+  ReceiptText,
+} from "lucide-react";
 import { patientService } from "../services/patient.service";
+import { billingService } from "../services/billing.service";
+import { useAuth } from "../context/AuthContext";
+import { PrintFormatDialog } from "../components/print/PrintFormatDialog";
 export function VisitDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const [visit, setVisit] = useState(null),
-    [error, setError] = useState("");
+    [error, setError] = useState(""),
+    [bill, setBill] = useState(null),
+    [printOpen, setPrintOpen] = useState(false),
+    [printFormat, setPrintFormat] = useState("A4");
+  const canPrint = user?.permissions.includes("BILL_PRINT");
   useEffect(() => {
     patientService
       .getVisit(id)
@@ -14,6 +29,13 @@ export function VisitDetailPage() {
         setError(e.response?.data?.message || "Unable to load visit."),
       );
   }, [id]);
+  useEffect(() => {
+    if (visit?.billId && canPrint)
+      billingService
+        .get(visit.billId)
+        .then((response) => setBill(response.data.data))
+        .catch(() => {});
+  }, [visit?.billId, canPrint]);
   if (error)
     return <p className="rounded-xl bg-rose-50 p-4 text-rose-700">{error}</p>;
   if (!visit)
@@ -34,9 +56,18 @@ export function VisitDetailPage() {
           {new Date(visit.visitDate).toLocaleDateString()} · {visit.doctorName}
         </p>
         <dl className="mt-5 grid gap-3 rounded-xl bg-slate-50 p-4 sm:grid-cols-3">
-          <div><dt className="hms-label">Patient</dt><dd className="mt-1 font-semibold">{visit.patientName}</dd></div>
-          <div><dt className="hms-label">Patient ID</dt><dd className="mt-1 font-semibold">{visit.patientNumber}</dd></div>
-          <div><dt className="hms-label">CNIC</dt><dd className="mt-1 font-semibold">{visit.patientCnic}</dd></div>
+          <div>
+            <dt className="hms-label">Patient</dt>
+            <dd className="mt-1 font-semibold">{visit.patientName}</dd>
+          </div>
+          <div>
+            <dt className="hms-label">Patient ID</dt>
+            <dd className="mt-1 font-semibold">{visit.patientNumber}</dd>
+          </div>
+          <div>
+            <dt className="hms-label">CNIC</dt>
+            <dd className="mt-1 font-semibold">{visit.patientCnic}</dd>
+          </div>
         </dl>
       </section>
       <section className="hms-card p-6">
@@ -71,12 +102,82 @@ export function VisitDetailPage() {
           </p>
         )}
         <div className="mt-6 border-t border-slate-200 pt-4">
-          <div className="flex justify-between text-sm"><span>Visit fee</span><b>{visit.feeType === "FREE" ? "FREE" : `PKR ${visit.visitFee}`}</b></div>
-          <div className="mt-2 flex justify-between text-sm"><span>Services total</span><b>PKR {visit.servicesTotal}</b></div>
-          <div className="mt-3 flex justify-between text-lg"><b>Total</b><b>PKR {visit.total}</b></div>
+          <div className="flex justify-between text-sm">
+            <span>Visit fee</span>
+            <b>{visit.feeType === "FREE" ? "FREE" : `PKR ${visit.visitFee}`}</b>
+          </div>
+          <div className="mt-2 flex justify-between text-sm">
+            <span>Services total</span>
+            <b>PKR {visit.servicesTotal}</b>
+          </div>
+          <div className="mt-3 flex justify-between text-lg">
+            <b>Total</b>
+            <b>PKR {visit.total}</b>
+          </div>
         </div>
-        {visit.billId && <div className="mt-6 rounded-xl border border-slate-200 p-4"><h3 className="font-bold">Billing Summary</h3><div className="mt-3 grid gap-3 text-sm sm:grid-cols-3"><p>Gross Total<br/><b>PKR {visit.total}</b></p><p>Paid<br/><b>PKR {visit.amountPaid}</b></p><p>Balance<br/><b>PKR {visit.balanceDue}</b></p></div><p className="mt-3 text-sm font-bold text-teal-700">{visit.paymentStatus?.replaceAll("_"," ")}</p><Link className="hms-button-primary mt-4" to={`/billing/${visit.billId}`}><CreditCard size={16}/> View Bill</Link></div>}
+        {visit.billId && (
+          <div className="mt-6 rounded-xl border border-slate-200 p-4">
+            <h3 className="font-bold">Billing Summary</h3>
+            <div className="mt-3 grid gap-3 text-sm sm:grid-cols-3">
+              <p>
+                Gross Total
+                <br />
+                <b>PKR {visit.total}</b>
+              </p>
+              <p>
+                Paid
+                <br />
+                <b>PKR {visit.amountPaid}</b>
+              </p>
+              <p>
+                Balance
+                <br />
+                <b>PKR {visit.balanceDue}</b>
+              </p>
+            </div>
+            <p className="mt-3 text-sm font-bold text-teal-700">
+              {visit.paymentStatus?.replaceAll("_", " ")}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <Link
+                className="hms-button-primary"
+                to={`/billing/${visit.billId}`}
+              >
+                <CreditCard size={16} /> View Bill
+              </Link>
+              {canPrint && (
+                <button
+                  type="button"
+                  className="hms-button-secondary"
+                  onClick={() => setPrintOpen(true)}
+                >
+                  <Printer size={16} /> Print Invoice
+                </button>
+              )}
+              {canPrint && bill?.payments?.[0] && (
+                <Link
+                  className="hms-button-secondary"
+                  to={`/billing/${visit.billId}/payments/${encodeURIComponent(bill.payments[0].paymentNumber)}/receipt?format=80mm`}
+                >
+                  <ReceiptText size={16} /> Latest Receipt
+                </Link>
+              )}
+            </div>
+          </div>
+        )}
       </section>
+      <PrintFormatDialog
+        open={printOpen}
+        value={printFormat}
+        onChange={setPrintFormat}
+        onCancel={() => setPrintOpen(false)}
+        onContinue={() => {
+          setPrintOpen(false);
+          navigate(
+            `/billing/${visit.billId}/invoice?format=${printFormat.toLowerCase()}`,
+          );
+        }}
+      />
     </div>
   );
 }

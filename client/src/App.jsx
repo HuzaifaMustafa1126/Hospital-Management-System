@@ -32,6 +32,9 @@ import { BloodBankPatientsPage } from "./pages/BloodBankPatientsPage";
 import { BloodBankPatientPage } from "./pages/BloodBankPatientPage";
 import { BillingPage } from "./pages/BillingPage";
 import { BillDetailPage } from "./pages/BillDetailPage";
+import { InvoicePreviewPage } from "./pages/InvoicePreviewPage";
+import { PaymentReceiptPage } from "./pages/PaymentReceiptPage";
+import { HospitalSettingsPage } from "./pages/HospitalSettingsPage";
 
 export function App() {
   return (
@@ -51,6 +54,20 @@ export function App() {
           >
             <Route path="/billing" element={<BillingPage />} />
             <Route path="/billing/:id" element={<BillDetailPage />} />
+            <Route
+              element={
+                <PermissionProtectedRoute permissions={["BILL_PRINT"]} />
+              }
+            >
+              <Route
+                path="/billing/:id/invoice"
+                element={<InvoicePreviewPage />}
+              />
+              <Route
+                path="/billing/:id/payments/:paymentNumber/receipt"
+                element={<PaymentReceiptPage />}
+              />
+            </Route>
           </Route>
           <Route
             element={
@@ -179,6 +196,10 @@ export function App() {
             <Route
               path="/admin/settings/registration-fee"
               element={<RegistrationFeeSettingsPage />}
+            />
+            <Route
+              path="/settings/hospital"
+              element={<HospitalSettingsPage />}
             />
           </Route>
         </Route>

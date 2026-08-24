@@ -142,6 +142,18 @@ function Toast({ toast, dismiss }) {
               {toast.message}
             </p>
           )}
+          {toast.actionLabel && (
+            <button
+              type="button"
+              className="mt-2 text-sm font-bold text-teal-700 hover:text-teal-900 focus:outline-none focus-visible:underline"
+              onClick={() => {
+                toast.onAction?.();
+                dismiss(toast.id);
+              }}
+            >
+              {toast.actionLabel}
+            </button>
+          )}
         </div>
         <button
           type="button"
@@ -194,14 +206,24 @@ export function NotificationProvider({ children }) {
   }, []);
 
   const notify = useCallback(
-    ({ type = "info", title, message, duration = 3800 }) => {
+    ({
+      type = "info",
+      title,
+      message,
+      duration = 3800,
+      actionLabel,
+      onAction,
+    }) => {
       const toast = {
-        id: globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
+        id:
+          globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`,
         type,
         title,
         message,
         duration,
         closing: false,
+        actionLabel,
+        onAction,
       };
       setToasts((current) => [...current.slice(-3), toast]);
       return toast.id;

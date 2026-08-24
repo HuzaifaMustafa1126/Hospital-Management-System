@@ -34,6 +34,8 @@ const permissions = [
   "PAYMENT_CREATE",
   "PAYMENT_VIEW",
   "BILL_PRINT",
+  "HOSPITAL_SETTINGS_VIEW",
+  "HOSPITAL_SETTINGS_UPDATE",
   "USER_CREATE",
   "USER_VIEW",
   "USER_UPDATE",
@@ -57,6 +59,7 @@ const receptionPermissions = [
   "REGISTRATION_FEE_RECEIPT_VIEW",
   "REGISTRATION_FEE_RECEIPT_PRINT",
   "BILL_VIEW",
+  "BILL_PRINT",
   "PAYMENT_CREATE",
   "PAYMENT_VIEW",
 ];
@@ -112,18 +115,28 @@ async function seed() {
       for (const name of departmentPatientPermissions)
         await connection.execute(
           "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
-        [roleIds[role], permissionIds[name]],
-      );
+          [roleIds[role], permissionIds[name]],
+        );
     await connection.execute(
       "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
       [roleIds.LAB_ATTENDANT, permissionIds.LAB_SERVICE_ADD],
     );
-    for (const name of ["BLOOD_BANK_VIEW", "BLOOD_BANK_PATIENT_SEARCH", "BLOOD_BANK_SERVICE_VIEW", "BLOOD_BANK_SERVICE_ADD"])
+    for (const name of [
+      "BLOOD_BANK_VIEW",
+      "BLOOD_BANK_PATIENT_SEARCH",
+      "BLOOD_BANK_SERVICE_VIEW",
+      "BLOOD_BANK_SERVICE_ADD",
+    ])
       await connection.execute(
         "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
         [roleIds.BLOOD_BANK_STAFF, permissionIds[name]],
       );
-    for (const name of ["SURGERY_VIEW", "SURGERY_SERVICE_VIEW", "SURGERY_SERVICE_ADD", "SURGERY_PATIENT_SEARCH"])
+    for (const name of [
+      "SURGERY_VIEW",
+      "SURGERY_SERVICE_VIEW",
+      "SURGERY_SERVICE_ADD",
+      "SURGERY_PATIENT_SEARCH",
+    ])
       await connection.execute(
         "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
         [roleIds.SURGERY_ATTENDANT, permissionIds[name]],
@@ -134,6 +147,28 @@ async function seed() {
     await connection.execute(
       "INSERT INTO settings (setting_key, setting_value) VALUES ('REGISTRATION_FEE', '500') ON DUPLICATE KEY UPDATE setting_key = VALUES(setting_key)",
     );
+    const hospitalDefaults = {
+      HOSPITAL_NAME: "Hospital Management System",
+      HOSPITAL_SHORT_NAME: "HMS",
+      HOSPITAL_LOGO: "",
+      HOSPITAL_ADDRESS: "Sargodha, Punjab, Pakistan",
+      HOSPITAL_PHONE: "+92 XXX XXXXXXX",
+      HOSPITAL_ALTERNATE_PHONE: "",
+      HOSPITAL_EMAIL: "info@hospital.local",
+      HOSPITAL_WEBSITE: "",
+      HOSPITAL_TAX_NUMBER: "",
+      HOSPITAL_REGISTRATION_NUMBER: "",
+      HOSPITAL_FOOTER:
+        "Thank you for choosing our hospital. This is a computer-generated document and requires no signature.",
+      HOSPITAL_CURRENCY: "PKR",
+      HOSPITAL_INVOICE_PREFIX: "BILL",
+      HOSPITAL_RECEIPT_PREFIX: "PAY",
+    };
+    for (const [key, value] of Object.entries(hospitalDefaults))
+      await connection.execute(
+        "INSERT IGNORE INTO settings (setting_key, setting_value) VALUES (?, ?)",
+        [key, value],
+      );
     const email = env.SUPER_ADMIN_EMAIL.toLowerCase();
     const [users] = await connection.execute(
       "SELECT id FROM users WHERE email = ?",

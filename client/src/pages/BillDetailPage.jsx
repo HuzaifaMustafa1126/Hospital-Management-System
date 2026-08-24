@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { ArrowLeft, CreditCard, X } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ArrowLeft, CreditCard, Printer, ReceiptText, X } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useNotifications } from "../context/NotificationContext";
 import { billingService } from "../services/billing.service";
 import { money } from "../utils/money";
+import { PrintFormatDialog } from "../components/print/PrintFormatDialog";
 const badge = {
   UNPAID: "bg-rose-50 text-rose-700",
   PARTIALLY_PAID: "bg-amber-50 text-amber-700",
   PAID: "bg-emerald-50 text-emerald-700",
 };
 export function BillDetailPage() {
-  const { id } = useParams(),
-    { user } = useAuth(),
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth(),
     { notify } = useNotifications();
   const [bill, setBill] = useState(null),
     [open, setOpen] = useState(false),
@@ -24,7 +26,9 @@ export function BillDetailPage() {
     }),
     [saving, setSaving] = useState(false),
     [error, setError] = useState(""),
-    [message, setMessage] = useState("");
+    [message, setMessage] = useState(""),
+    [printOpen, setPrintOpen] = useState(false),
+    [printFormat, setPrintFormat] = useState("A4");
   const load = useCallback(async () => {
     try {
       const response = await billingService.get(id);
@@ -43,6 +47,7 @@ export function BillDetailPage() {
     return <p className="hms-card p-8 text-slate-500">Loading bill…</p>;
   const canPay =
     user?.permissions.includes("PAYMENT_CREATE") && bill.balanceDue > 0;
+  const canPrint = user?.permissions.includes("BILL_PRINT");
   const showPayment = () => {
     setForm({
       amount: String(bill.balanceDue),
@@ -57,14 +62,31 @@ export function BillDetailPage() {
     event.preventDefault();
     setSaving(true);
     try {
-      await billingService.addPayment(id, {
+      const response = await billingService.addPayment(id, {
         ...form,
         amount: Number(form.amount),
       });
+      const payment = response.data.data;
       notify({
         type: "success",
-        title: "Payment Recorded",
-        message: `${money(Number(form.amount))} payment was recorded successfully.`,
+        title:
+          payment.paymentStatus === "PAID"
+            ? "Bill Paid Successfully"
+            : "Payment Recorded Successfully",
+        message:
+          payment.paymentStatus === "PAID"
+            ? `Bill ${payment.billNumber} is fully paid.`
+            : `${money(Number(form.amount))} received.`,
+        duration: 6500,
+        ...(canPrint
+          ? {
+              actionLabel: "Print Receipt",
+              onAction: () =>
+                navigate(
+                  `/billing/${id}/payments/${encodeURIComponent(payment.paymentNumber)}/receipt?format=80mm`,
+                ),
+            }
+          : {}),
       });
       setOpen(false);
       setMessage("Payment recorded successfully.");
@@ -161,15 +183,25 @@ export function BillDetailPage() {
             <b>{money(bill.balanceDue)}</b>
           </div>
         </div>
-        {canPay ? (
-          <button className="hms-button-primary mt-6" onClick={showPayment}>
-            <CreditCard size={16} /> Add Payment
-          </button>
-        ) : bill.balanceDue === 0 ? (
-          <p className="mt-5 rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
-            This bill has been paid in full.
-          </p>
-        ) : null}
+        <div className="mt-6 flex flex-wrap gap-3">
+          {canPrint && (
+            <button
+              className="hms-button-secondary"
+              onClick={() => setPrintOpen(true)}
+            >
+              <Printer size={16} /> Print Invoice
+            </button>
+          )}
+          {canPay ? (
+            <button className="hms-button-primary" onClick={showPayment}>
+              <CreditCard size={16} /> Add Payment
+            </button>
+          ) : bill.balanceDue === 0 ? (
+            <p className="rounded-xl bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-700">
+              This bill has been paid in full.
+            </p>
+          ) : null}
+        </div>
       </section>
       <section className="hms-card p-6">
         <h3 className="font-bold">Payment History</h3>
@@ -191,6 +223,14 @@ export function BillDetailPage() {
                   Received by {payment.receivedBy}
                 </span>
                 <b>{money(payment.amount)}</b>
+                {canPrint && (
+                  <Link
+                    className="inline-flex items-center gap-1 font-semibold text-teal-700"
+                    to={`/billing/${id}/payments/${encodeURIComponent(payment.paymentNumber)}/receipt?format=80mm`}
+                  >
+                    <ReceiptText size={15} /> Print Receipt
+                  </Link>
+                )}
               </div>
             ))}
           </div>
@@ -300,6 +340,18 @@ export function BillDetailPage() {
           </form>
         </div>
       )}
+      <PrintFormatDialog
+        open={printOpen}
+        value={printFormat}
+        onChange={setPrintFormat}
+        onCancel={() => setPrintOpen(false)}
+        onContinue={() => {
+          setPrintOpen(false);
+          navigate(
+            `/billing/${id}/invoice?format=${printFormat.toLowerCase()}`,
+          );
+        }}
+      />
     </div>
   );
 }

@@ -1,8 +1,29 @@
-import { Router } from 'express';
-import { settingsController } from '../controllers/settings.controller.js';
-import { authenticate, requirePermission } from '../middleware/auth.middleware.js';
-import { asyncHandler } from '../utils/async-handler.js';
+import { Router } from "express";
+import { settingsController } from "../controllers/settings.controller.js";
+import {
+  authenticate,
+  requirePermission,
+} from "../middleware/auth.middleware.js";
+import { asyncHandler } from "../utils/async-handler.js";
 export const settingsRouter = Router();
 settingsRouter.use(authenticate);
-settingsRouter.get('/registration-fee', requirePermission('REGISTRATION_FEE_VIEW'), asyncHandler(settingsController.getRegistrationFee));
-settingsRouter.put('/registration-fee', requirePermission('REGISTRATION_FEE_UPDATE'), asyncHandler(settingsController.updateRegistrationFee));
+settingsRouter.get(
+  "/registration-fee",
+  requirePermission("REGISTRATION_FEE_VIEW"),
+  asyncHandler(settingsController.getRegistrationFee),
+);
+settingsRouter.put(
+  "/registration-fee",
+  requirePermission("REGISTRATION_FEE_UPDATE"),
+  asyncHandler(settingsController.updateRegistrationFee),
+);
+settingsRouter.get(
+  "/hospital",
+  requirePermission("HOSPITAL_SETTINGS_VIEW"),
+  asyncHandler(settingsController.getHospital),
+);
+settingsRouter.put(
+  "/hospital",
+  requirePermission("HOSPITAL_SETTINGS_UPDATE"),
+  asyncHandler(settingsController.updateHospital),
+);

@@ -67,11 +67,11 @@ export function AppLayout() {
             ["Blood Bank Patients", "/blood-bank/patients", Search],
           ],
         ],
+        [
+          "FINANCE",
           [
-            "FINANCE",
-            [
-              ["Revenue", "/revenue", Banknote],
-              ["Billing", "/billing", WalletCards],
+            ["Revenue", "/revenue", Banknote],
+            ["Billing", "/billing", WalletCards],
             [
               "Registration Fees",
               "/admin/settings/registration-fee",
@@ -84,6 +84,7 @@ export function AppLayout() {
           [
             ["Users", "/admin/users", UserCog],
             ["Audit Logs", "/audit-logs", ClipboardList],
+            ["Hospital Information", "/settings/hospital", Building2],
             ["Settings", "/admin/settings/registration-fee", Settings],
           ],
         ],
@@ -99,25 +100,41 @@ export function AppLayout() {
       : surgery
         ? [
             ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
-            ["SURGERY", [["Surgery Dashboard", "/surgery", Scissors], ["Surgery Patients", "/surgery/patients", Search]]],
+            [
+              "SURGERY",
+              [
+                ["Surgery Dashboard", "/surgery", Scissors],
+                ["Surgery Patients", "/surgery/patients", Search],
+              ],
+            ],
           ]
         : bloodBank
           ? [
               ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
-              ["BLOOD BANK", [["Blood Bank", "/blood-bank", Droplets], ["Search Patient", "/blood-bank/patients", Search]]],
-            ]
-        : [
-            ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
-            [
-              "PATIENT MANAGEMENT",
               [
-                ["Patients", "/reception/patients", Users],
-                ["Register Patient", "/reception/patients/register", UserPlus],
-                ["Patient Search", "/reception/patients/search", Search],
-                ["Billing", "/billing", WalletCards],
+                "BLOOD BANK",
+                [
+                  ["Blood Bank", "/blood-bank", Droplets],
+                  ["Search Patient", "/blood-bank/patients", Search],
+                ],
               ],
-            ],
-          ];
+            ]
+          : [
+              ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
+              [
+                "PATIENT MANAGEMENT",
+                [
+                  ["Patients", "/reception/patients", Users],
+                  [
+                    "Register Patient",
+                    "/reception/patients/register",
+                    UserPlus,
+                  ],
+                  ["Patient Search", "/reception/patients/search", Search],
+                  ["Billing", "/billing", WalletCards],
+                ],
+              ],
+            ];
   const title =
     location.pathname.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ||
     "Dashboard";

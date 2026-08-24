@@ -36,6 +36,8 @@ const permissions = [
   "PAYMENT_CREATE",
   "PAYMENT_VIEW",
   "BILL_PRINT",
+  "HOSPITAL_SETTINGS_VIEW",
+  "HOSPITAL_SETTINGS_UPDATE",
   "USER_CREATE",
   "USER_VIEW",
   "USER_UPDATE",
@@ -59,6 +61,7 @@ const receptionPermissions = [
   "REGISTRATION_FEE_RECEIPT_VIEW",
   "REGISTRATION_FEE_RECEIPT_PRINT",
   "BILL_VIEW",
+  "BILL_PRINT",
   "PAYMENT_CREATE",
   "PAYMENT_VIEW",
 ];
@@ -134,7 +137,12 @@ async function seedAccessControl(connection) {
     "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
     [roleIds.LAB_ATTENDANT, permissionIds.LAB_SERVICE_ADD],
   );
-  for (const name of ["BLOOD_BANK_VIEW", "BLOOD_BANK_PATIENT_SEARCH", "BLOOD_BANK_SERVICE_VIEW", "BLOOD_BANK_SERVICE_ADD"])
+  for (const name of [
+    "BLOOD_BANK_VIEW",
+    "BLOOD_BANK_PATIENT_SEARCH",
+    "BLOOD_BANK_SERVICE_VIEW",
+    "BLOOD_BANK_SERVICE_ADD",
+  ])
     await connection.execute(
       "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
       [roleIds.BLOOD_BANK_STAFF, permissionIds[name]],
@@ -155,6 +163,28 @@ async function seedAccessControl(connection) {
   await connection.execute(
     "INSERT INTO settings (setting_key, setting_value) VALUES ('REGISTRATION_FEE', '500') ON DUPLICATE KEY UPDATE setting_key = VALUES(setting_key)",
   );
+  const hospitalDefaults = {
+    HOSPITAL_NAME: "Hospital Management System",
+    HOSPITAL_SHORT_NAME: "HMS",
+    HOSPITAL_LOGO: "",
+    HOSPITAL_ADDRESS: "Sargodha, Punjab, Pakistan",
+    HOSPITAL_PHONE: "+92 XXX XXXXXXX",
+    HOSPITAL_ALTERNATE_PHONE: "",
+    HOSPITAL_EMAIL: "info@hospital.local",
+    HOSPITAL_WEBSITE: "",
+    HOSPITAL_TAX_NUMBER: "",
+    HOSPITAL_REGISTRATION_NUMBER: "",
+    HOSPITAL_FOOTER:
+      "Thank you for choosing our hospital. This is a computer-generated document and requires no signature.",
+    HOSPITAL_CURRENCY: "PKR",
+    HOSPITAL_INVOICE_PREFIX: "BILL",
+    HOSPITAL_RECEIPT_PREFIX: "PAY",
+  };
+  for (const [key, value] of Object.entries(hospitalDefaults))
+    await connection.execute(
+      "INSERT IGNORE INTO settings (setting_key, setting_value) VALUES (?, ?)",
+      [key, value],
+    );
   const doctors = [
     ["Ahmed", "Khan", "General Medicine", "DEV-DR-001"],
     ["Ali", "Raza", "Cardiology", "DEV-DR-002"],
@@ -280,20 +310,35 @@ export async function initializeDatabase({ log = false } = {}) {
       ["bill_number", "VARCHAR(50) NULL AFTER id"],
       ["amount_paid", "DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER total_amount"],
       ["balance_due", "DECIMAL(12,2) NOT NULL DEFAULT 0 AFTER amount_paid"],
-      ["payment_status", "ENUM('UNPAID','PARTIALLY_PAID','PAID') NOT NULL DEFAULT 'UNPAID' AFTER balance_due"],
+      [
+        "payment_status",
+        "ENUM('UNPAID','PARTIALLY_PAID','PAID') NOT NULL DEFAULT 'UNPAID' AFTER balance_due",
+      ],
     ]) {
-      const [columns] = await connection.query(`SHOW COLUMNS FROM visit_bills LIKE '${column}'`);
-      if (!columns.length) await connection.query(`ALTER TABLE visit_bills ADD COLUMN ${column} ${definition}`);
+      const [columns] = await connection.query(
+        `SHOW COLUMNS FROM visit_bills LIKE '${column}'`,
+      );
+      if (!columns.length)
+        await connection.query(
+          `ALTER TABLE visit_bills ADD COLUMN ${column} ${definition}`,
+        );
     }
-    await connection.query("UPDATE visit_bills SET bill_number=CONCAT('BILL-',YEAR(created_at),'-',LPAD(id,6,'0')) WHERE bill_number IS NULL");
+    await connection.query(
+      "UPDATE visit_bills SET bill_number=CONCAT('BILL-',YEAR(created_at),'-',LPAD(id,6,'0')) WHERE bill_number IS NULL",
+    );
     await connection.query(`UPDATE visit_bills b
       LEFT JOIN (SELECT visit_id,SUM(amount) paid FROM registration_payments WHERE payment_status='PAID' GROUP BY visit_id) rp ON rp.visit_id=b.visit_id
       LEFT JOIN (SELECT visit_id,SUM(amount) paid FROM bill_payments GROUP BY visit_id) bp ON bp.visit_id=b.visit_id
       SET b.amount_paid=COALESCE(rp.paid,0)+COALESCE(bp.paid,0),
           b.balance_due=GREATEST(b.total_amount-(COALESCE(rp.paid,0)+COALESCE(bp.paid,0)),0),
           b.payment_status=CASE WHEN b.total_amount<=COALESCE(rp.paid,0)+COALESCE(bp.paid,0) THEN 'PAID' WHEN COALESCE(rp.paid,0)+COALESCE(bp.paid,0)>0 THEN 'PARTIALLY_PAID' ELSE 'UNPAID' END`);
-    const [billNumberIndex] = await connection.query("SHOW INDEX FROM visit_bills WHERE Key_name='uq_visit_bills_number'");
-    if (!billNumberIndex.length) await connection.query("ALTER TABLE visit_bills ADD UNIQUE KEY uq_visit_bills_number (bill_number)");
+    const [billNumberIndex] = await connection.query(
+      "SHOW INDEX FROM visit_bills WHERE Key_name='uq_visit_bills_number'",
+    );
+    if (!billNumberIndex.length)
+      await connection.query(
+        "ALTER TABLE visit_bills ADD UNIQUE KEY uq_visit_bills_number (bill_number)",
+      );
     await connection.query(
       `CREATE TABLE IF NOT EXISTS bill_payments (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, payment_number VARCHAR(50) NOT NULL, bill_id BIGINT UNSIGNED NOT NULL, patient_id BIGINT UNSIGNED NOT NULL, visit_id BIGINT UNSIGNED NOT NULL, amount DECIMAL(12,2) NOT NULL, payment_method ENUM('CASH','CARD','BANK_TRANSFER','OTHER') NOT NULL DEFAULT 'CASH', reference_number VARCHAR(100) NULL, notes VARCHAR(1000) NULL, received_by VARCHAR(191) NOT NULL, paid_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(id), UNIQUE KEY uq_bill_payments_number(payment_number), KEY idx_bill_payments_bill_paid(bill_id,paid_at), KEY idx_bill_payments_visit(visit_id), CONSTRAINT bill_payments_bill_fkey FOREIGN KEY(bill_id) REFERENCES visit_bills(id), CONSTRAINT bill_payments_patient_fkey FOREIGN KEY(patient_id) REFERENCES patients(id), CONSTRAINT bill_payments_visit_fkey FOREIGN KEY(visit_id) REFERENCES patient_visits(id), CONSTRAINT bill_payments_received_by_fkey FOREIGN KEY(received_by) REFERENCES users(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     );
@@ -345,7 +390,9 @@ export async function initializeDatabase({ log = false } = {}) {
     await connection.query(
       `INSERT IGNORE INTO visit_bills (visit_id, patient_id, visit_fee, services_total, total_amount, created_by) SELECT v.id, v.patient_id, COALESCE(rp.amount,0), COALESCE(SUM(ps.total_amount),0), COALESCE(rp.amount,0)+COALESCE(SUM(ps.total_amount),0), v.created_by FROM patient_visits v LEFT JOIN registration_payments rp ON rp.visit_id=v.id LEFT JOIN patient_services ps ON ps.visit_id=v.id GROUP BY v.id, rp.id`,
     );
-    await connection.query("UPDATE visit_bills SET bill_number=CONCAT('BILL-',YEAR(created_at),'-',LPAD(id,6,'0')) WHERE bill_number IS NULL");
+    await connection.query(
+      "UPDATE visit_bills SET bill_number=CONCAT('BILL-',YEAR(created_at),'-',LPAD(id,6,'0')) WHERE bill_number IS NULL",
+    );
     if (log) console.log("Tables verified.");
     await seedAccessControl(connection);
     if (log) {
