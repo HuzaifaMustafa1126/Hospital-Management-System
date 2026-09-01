@@ -66,6 +66,10 @@ function A4Invoice({ data }) {
             <Detail label="CNIC" value={patient.cnic} />
             <Detail label="Phone" value={patient.phone} />
             <Detail label="Father name" value={patient.fatherName} />
+            <Detail
+              label="Gender"
+              value={patient.gender?.toLowerCase() || "Not specified"}
+            />
             <Detail label="Address" value={patient.address} />
           </dl>
         </div>
@@ -226,6 +230,10 @@ function ThermalInvoice({ data, format }) {
         <Detail label="Visit" value={visit.visitNumber} />
         <Detail label="Patient" value={patient.name} />
         <Detail label="Patient ID" value={patient.patientNumber} />
+        <Detail
+          label="Gender"
+          value={patient.gender?.toLowerCase() || "Not specified"}
+        />
         <Detail label="Doctor" value={visit.doctorName} />
         <Detail label="Date" value={printDateTime(bill.issueDate)} />
       </dl>

@@ -5,7 +5,12 @@ import { surgeryService } from "../services/surgery.service";
 import { useNotifications } from "../context/NotificationContext";
 
 const money = (amount) => `PKR ${Number(amount || 0).toLocaleString("en-PK")}`;
-const Info = ({ label, value }) => <div><dt className="hms-label">{label}</dt><dd className="mt-1 text-sm font-medium text-slate-800">{value || "—"}</dd></div>;
+const Info = ({ label, value }) => (
+  <div>
+    <dt className="hms-label">{label}</dt>
+    <dd className="mt-1 text-sm font-medium text-slate-800">{value || "—"}</dd>
+  </div>
+);
 
 export function SurgeryPatientPage() {
   const { notify } = useNotifications();
@@ -18,22 +23,388 @@ export function SurgeryPatientPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  const load = useCallback(async () => { try { const [patientResponse, servicesResponse] = await Promise.all([surgeryService.getPatient(id), surgeryService.availableServices()]); setPatient(patientResponse.data.data); setAvailable(servicesResponse.data.data); } catch (requestError) { setError(requestError.response?.data?.message || "Unable to load surgery patient."); } }, [id]);
-  useEffect(() => { void load(); }, [load]);
-  if (error && !patient) return <p className="rounded-xl bg-rose-50 p-5 text-rose-700">{error}</p>;
-  if (!patient) return <p className="hms-card p-8 text-sm text-slate-500">Loading patient record…</p>;
-  const selected = available.find((service) => String(service.id) === String(form.serviceId));
+  const load = useCallback(async () => {
+    try {
+      const [patientResponse, servicesResponse] = await Promise.all([
+        surgeryService.getPatient(id),
+        surgeryService.availableServices(),
+      ]);
+      setPatient(patientResponse.data.data);
+      setAvailable(servicesResponse.data.data);
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.message ||
+          "Unable to load surgery patient.",
+      );
+    }
+  }, [id]);
+  useEffect(() => {
+    void load();
+  }, [load]);
+  if (error && !patient)
+    return <p className="rounded-xl bg-rose-50 p-5 text-rose-700">{error}</p>;
+  if (!patient)
+    return (
+      <p className="hms-card p-8 text-sm text-slate-500">
+        Loading patient record…
+      </p>
+    );
+  const selected = available.find(
+    (service) => String(service.id) === String(form.serviceId),
+  );
   const quantity = Number(form.quantity);
-  const total = selected && Number.isInteger(quantity) && quantity > 0 ? selected.price * quantity : 0;
-  const review = (event) => { event.preventDefault(); setError(""); if (!selected) return setError("Select a Surgery service."); if (!Number.isInteger(quantity) || quantity < 1) return setError("Quantity must be a positive whole number."); setConfirming(true); };
-  const submit = async () => { setSaving(true); try { await surgeryService.addService(id, { serviceId: selected.id, quantity, notes: form.notes }); notify({ type: "success", title: "Surgery Service Added", message: `${selected.name} was added successfully.` }); setOpen(false); setConfirming(false); setForm({ serviceId: "", quantity: 1, notes: "" }); setMessage("Surgery service added successfully."); setError(""); await load(); } catch (requestError) { setError(requestError.response?.data?.message || "Unable to add Surgery service."); setConfirming(false); } finally { setSaving(false); } };
-  return <div className="mx-auto max-w-6xl space-y-5">
-    <Link className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600" to="/surgery/patients"><ArrowLeft size={16}/> Back to Surgery patient search</Link>
-    {message && <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">{message}</p>}
-    <section className="hms-card p-6"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><p className="text-sm font-semibold text-teal-700">Surgery patient profile</p><div className="mt-1 flex flex-wrap items-center gap-2"><h2 className="text-2xl font-bold text-slate-900">{patient.firstName} {patient.lastName}</h2><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">REGISTERED</span></div><p className="mt-1 text-sm text-slate-500">{patient.patientNumber}</p></div><button className="hms-button-primary" onClick={() => { setOpen(true); setMessage(""); }}><Plus size={16}/> Add Surgery Service</button></div>
-      <div className="mt-6 grid gap-6 border-t border-slate-100 pt-5 lg:grid-cols-3"><section><h3 className="font-bold">Patient Information</h3><dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1"><Info label="First Name" value={patient.firstName}/><Info label="Last Name" value={patient.lastName}/><Info label="Father Name" value={patient.fatherName}/><Info label="CNIC" value={patient.cnic}/><Info label="Phone" value={patient.phone}/><Info label="Address" value={patient.address}/></dl></section><section><h3 className="font-bold">Doctor Information</h3><dl className="mt-4 space-y-4"><Info label="Doctor Name" value={`Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}`}/><Info label="Specialization" value={patient.doctor.specialization}/></dl></section><section><h3 className="font-bold">Registration Information</h3><dl className="mt-4 space-y-4"><Info label="Registration Date" value={new Date(patient.createdAt).toLocaleString()}/><Info label="Registration Fee Type" value={patient.registrationFeeType}/><Info label="Registration Fee" value={patient.registrationFeeType === "FREE" ? "FREE" : money(patient.registrationFee)}/></dl><p className="mt-5 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">Registration information is read-only.</p></section></div>
-    </section>
-    <section className="hms-card overflow-hidden"><div className="flex items-center gap-2 border-b border-slate-100 p-5"><Scissors className="text-teal-700" size={18}/><div><h3 className="font-bold text-slate-900">Surgery Services</h3><p className="text-sm text-slate-500">Surgery service history for this patient.</p></div></div>{patient.surgeryServices.length ? <div className="overflow-x-auto"><table className="min-w-full text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{["Service","Code","Quantity","Unit Price","Total","Added By","Date & Time","Status"].map((column) => <th className="whitespace-nowrap px-5 py-3" key={column}>{column}</th>)}</tr></thead><tbody>{patient.surgeryServices.map((service) => <tr className="border-t border-slate-100" key={service.id}><td className="whitespace-nowrap px-5 py-4 font-medium">{service.serviceName}</td><td className="px-5 py-4">{service.serviceCode}</td><td className="px-5 py-4">{service.quantity}</td><td className="whitespace-nowrap px-5 py-4">{money(service.unitPrice)}</td><td className="whitespace-nowrap px-5 py-4 font-semibold">{money(service.totalAmount)}</td><td className="whitespace-nowrap px-5 py-4">{service.addedBy}</td><td className="whitespace-nowrap px-5 py-4">{new Date(service.createdAt).toLocaleString()}</td><td className="px-5 py-4"><span className="rounded-full bg-teal-50 px-2 py-1 text-xs font-bold text-teal-700">{service.status}</span></td></tr>)}</tbody></table></div> : <div className="p-10 text-center"><p className="text-sm text-slate-500">No surgery services have been added for this patient.</p><button className="hms-button-primary mt-4" onClick={() => setOpen(true)}><Plus size={16}/> Add Surgery Service</button></div>}</section>
-    {open && <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/55 p-4"><form className="relative w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl" onSubmit={review}><button type="button" className="absolute right-5 top-5 rounded-lg p-1 text-slate-500" onClick={() => { setOpen(false); setConfirming(false); }}><X size={20}/></button><h3 className="text-xl font-bold">Add Surgery Service</h3><p className="mt-1 text-sm text-slate-500">Prices are loaded securely from the service catalogue.</p>{error && <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">{error}</p>}<label className="mt-5 block text-sm font-semibold">Surgery Service *<select required className="hms-input" value={form.serviceId} onChange={(event) => { setForm({ ...form, serviceId: event.target.value }); setConfirming(false); }}><option value="">Select a Surgery service</option>{available.map((service) => <option value={service.id} key={service.id}>{service.name} ({service.code}) — {money(service.price)}</option>)}</select></label><label className="mt-4 block text-sm font-semibold">Quantity *<input required min="1" step="1" type="number" className="hms-input" value={form.quantity} onChange={(event) => { setForm({ ...form, quantity: event.target.value }); setConfirming(false); }}/></label><label className="mt-4 block text-sm font-semibold">Notes<textarea maxLength="1000" className="hms-input min-h-20" value={form.notes} onChange={(event) => { setForm({ ...form, notes: event.target.value }); setConfirming(false); }}/></label>{selected && <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm"><div className="flex items-center gap-3"><span className="rounded-xl bg-teal-100 p-2 text-teal-700"><Scissors size={20}/></span><div><b>{selected.name}</b><p className="text-slate-500">{selected.code}</p></div><b className="ml-auto">{money(selected.price)}</b></div><p className="mt-3 flex justify-between border-t border-slate-200 pt-3"><span>Total</span><b>{money(total)}</b></p></div>}{confirming && selected && <div className="mt-5 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm"><h4 className="font-bold text-teal-900">Confirm Surgery Service</h4><dl className="mt-3 grid grid-cols-2 gap-2 text-teal-950"><dt>Patient</dt><dd className="font-semibold">{patient.firstName} {patient.lastName}</dd><dt>Patient Number</dt><dd className="font-semibold">{patient.patientNumber}</dd><dt>Service</dt><dd className="font-semibold">{selected.name}</dd><dt>Quantity</dt><dd className="font-semibold">{quantity}</dd><dt>Unit Price</dt><dd className="font-semibold">{money(selected.price)}</dd><dt>Total</dt><dd className="font-semibold">{money(total)}</dd><dt>Notes</dt><dd className="font-semibold">{form.notes || "—"}</dd></dl></div>}<div className="mt-6 flex flex-wrap justify-end gap-3"><button type="button" className="hms-button-secondary" onClick={() => confirming ? setConfirming(false) : setOpen(false)}>Cancel</button>{confirming ? <button type="button" disabled={saving} className="hms-button-primary" onClick={submit}>{saving ? "Adding…" : "Confirm & Add Service"}</button> : <button className="hms-button-primary">Review Service</button>}</div></form></div>}
-  </div>;
+  const total =
+    selected && Number.isInteger(quantity) && quantity > 0
+      ? selected.price * quantity
+      : 0;
+  const review = (event) => {
+    event.preventDefault();
+    setError("");
+    if (!selected) return setError("Select a Surgery service.");
+    if (!Number.isInteger(quantity) || quantity < 1)
+      return setError("Quantity must be a positive whole number.");
+    setConfirming(true);
+  };
+  const submit = async () => {
+    setSaving(true);
+    try {
+      await surgeryService.addService(id, {
+        serviceId: selected.id,
+        quantity,
+        notes: form.notes,
+      });
+      notify({
+        type: "success",
+        title: "Surgery Service Added",
+        message: `${selected.name} was added successfully.`,
+      });
+      setOpen(false);
+      setConfirming(false);
+      setForm({ serviceId: "", quantity: 1, notes: "" });
+      setMessage("Surgery service added successfully.");
+      setError("");
+      await load();
+    } catch (requestError) {
+      setError(
+        requestError.response?.data?.message ||
+          "Unable to add Surgery service.",
+      );
+      setConfirming(false);
+    } finally {
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="mx-auto max-w-6xl space-y-5">
+      <Link
+        className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600"
+        to="/surgery/patients"
+      >
+        <ArrowLeft size={16} /> Back to Surgery patient search
+      </Link>
+      {message && (
+        <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">
+          {message}
+        </p>
+      )}
+      <section className="hms-card p-6">
+        <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+          <div>
+            <p className="text-sm font-semibold text-teal-700">
+              Surgery patient profile
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-bold text-slate-900">
+                {patient.firstName} {patient.lastName}
+              </h2>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                REGISTERED
+              </span>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              {patient.patientNumber}
+            </p>
+          </div>
+          <button
+            className="hms-button-primary"
+            onClick={() => {
+              setOpen(true);
+              setMessage("");
+            }}
+          >
+            <Plus size={16} /> Add Surgery Service
+          </button>
+        </div>
+        <div className="mt-6 grid gap-6 border-t border-slate-100 pt-5 lg:grid-cols-3">
+          <section>
+            <h3 className="font-bold">Patient Information</h3>
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-1">
+              <Info label="First Name" value={patient.firstName} />
+              <Info label="Last Name" value={patient.lastName} />
+              <Info label="Father Name" value={patient.fatherName} />
+              <Info
+                label="Gender"
+                value={patient.gender?.toLowerCase() || "Not specified"}
+              />
+              <Info label="CNIC" value={patient.cnic} />
+              <Info label="Phone" value={patient.phone} />
+              <Info label="Address" value={patient.address} />
+            </dl>
+          </section>
+          <section>
+            <h3 className="font-bold">Doctor Information</h3>
+            <dl className="mt-4 space-y-4">
+              <Info
+                label="Doctor Name"
+                value={`Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}`}
+              />
+              <Info
+                label="Specialization"
+                value={patient.doctor.specialization}
+              />
+            </dl>
+          </section>
+          <section>
+            <h3 className="font-bold">Registration Information</h3>
+            <dl className="mt-4 space-y-4">
+              <Info
+                label="Registration Date"
+                value={new Date(patient.createdAt).toLocaleString()}
+              />
+              <Info
+                label="Registration Fee Type"
+                value={patient.registrationFeeType}
+              />
+              <Info
+                label="Registration Fee"
+                value={
+                  patient.registrationFeeType === "FREE"
+                    ? "FREE"
+                    : money(patient.registrationFee)
+                }
+              />
+            </dl>
+            <p className="mt-5 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+              Registration information is read-only.
+            </p>
+          </section>
+        </div>
+      </section>
+      <section className="hms-card overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-slate-100 p-5">
+          <Scissors className="text-teal-700" size={18} />
+          <div>
+            <h3 className="font-bold text-slate-900">Surgery Services</h3>
+            <p className="text-sm text-slate-500">
+              Surgery service history for this patient.
+            </p>
+          </div>
+        </div>
+        {patient.surgeryServices.length ? (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr>
+                  {[
+                    "Service",
+                    "Code",
+                    "Quantity",
+                    "Unit Price",
+                    "Total",
+                    "Added By",
+                    "Date & Time",
+                    "Status",
+                  ].map((column) => (
+                    <th className="whitespace-nowrap px-5 py-3" key={column}>
+                      {column}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {patient.surgeryServices.map((service) => (
+                  <tr className="border-t border-slate-100" key={service.id}>
+                    <td className="whitespace-nowrap px-5 py-4 font-medium">
+                      {service.serviceName}
+                    </td>
+                    <td className="px-5 py-4">{service.serviceCode}</td>
+                    <td className="px-5 py-4">{service.quantity}</td>
+                    <td className="whitespace-nowrap px-5 py-4">
+                      {money(service.unitPrice)}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4 font-semibold">
+                      {money(service.totalAmount)}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4">
+                      {service.addedBy}
+                    </td>
+                    <td className="whitespace-nowrap px-5 py-4">
+                      {new Date(service.createdAt).toLocaleString()}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className="rounded-full bg-teal-50 px-2 py-1 text-xs font-bold text-teal-700">
+                        {service.status}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-10 text-center">
+            <p className="text-sm text-slate-500">
+              No surgery services have been added for this patient.
+            </p>
+            <button
+              className="hms-button-primary mt-4"
+              onClick={() => setOpen(true)}
+            >
+              <Plus size={16} /> Add Surgery Service
+            </button>
+          </div>
+        )}
+      </section>
+      {open && (
+        <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/55 p-4">
+          <form
+            className="relative w-full max-w-xl rounded-2xl bg-white p-6 shadow-2xl"
+            onSubmit={review}
+          >
+            <button
+              type="button"
+              className="absolute right-5 top-5 rounded-lg p-1 text-slate-500"
+              onClick={() => {
+                setOpen(false);
+                setConfirming(false);
+              }}
+            >
+              <X size={20} />
+            </button>
+            <h3 className="text-xl font-bold">Add Surgery Service</h3>
+            <p className="mt-1 text-sm text-slate-500">
+              Prices are loaded securely from the service catalogue.
+            </p>
+            {error && (
+              <p className="mt-4 rounded-lg bg-rose-50 p-3 text-sm text-rose-700">
+                {error}
+              </p>
+            )}
+            <label className="mt-5 block text-sm font-semibold">
+              Surgery Service *
+              <select
+                required
+                className="hms-input"
+                value={form.serviceId}
+                onChange={(event) => {
+                  setForm({ ...form, serviceId: event.target.value });
+                  setConfirming(false);
+                }}
+              >
+                <option value="">Select a Surgery service</option>
+                {available.map((service) => (
+                  <option value={service.id} key={service.id}>
+                    {service.name} ({service.code}) — {money(service.price)}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="mt-4 block text-sm font-semibold">
+              Quantity *
+              <input
+                required
+                min="1"
+                step="1"
+                type="number"
+                className="hms-input"
+                value={form.quantity}
+                onChange={(event) => {
+                  setForm({ ...form, quantity: event.target.value });
+                  setConfirming(false);
+                }}
+              />
+            </label>
+            <label className="mt-4 block text-sm font-semibold">
+              Notes
+              <textarea
+                maxLength="1000"
+                className="hms-input min-h-20"
+                value={form.notes}
+                onChange={(event) => {
+                  setForm({ ...form, notes: event.target.value });
+                  setConfirming(false);
+                }}
+              />
+            </label>
+            {selected && (
+              <div className="mt-5 rounded-xl bg-slate-50 p-4 text-sm">
+                <div className="flex items-center gap-3">
+                  <span className="rounded-xl bg-teal-100 p-2 text-teal-700">
+                    <Scissors size={20} />
+                  </span>
+                  <div>
+                    <b>{selected.name}</b>
+                    <p className="text-slate-500">{selected.code}</p>
+                  </div>
+                  <b className="ml-auto">{money(selected.price)}</b>
+                </div>
+                <p className="mt-3 flex justify-between border-t border-slate-200 pt-3">
+                  <span>Total</span>
+                  <b>{money(total)}</b>
+                </p>
+              </div>
+            )}
+            {confirming && selected && (
+              <div className="mt-5 rounded-xl border border-teal-200 bg-teal-50 p-4 text-sm">
+                <h4 className="font-bold text-teal-900">
+                  Confirm Surgery Service
+                </h4>
+                <dl className="mt-3 grid grid-cols-2 gap-2 text-teal-950">
+                  <dt>Patient</dt>
+                  <dd className="font-semibold">
+                    {patient.firstName} {patient.lastName}
+                  </dd>
+                  <dt>Patient Number</dt>
+                  <dd className="font-semibold">{patient.patientNumber}</dd>
+                  <dt>Service</dt>
+                  <dd className="font-semibold">{selected.name}</dd>
+                  <dt>Quantity</dt>
+                  <dd className="font-semibold">{quantity}</dd>
+                  <dt>Unit Price</dt>
+                  <dd className="font-semibold">{money(selected.price)}</dd>
+                  <dt>Total</dt>
+                  <dd className="font-semibold">{money(total)}</dd>
+                  <dt>Notes</dt>
+                  <dd className="font-semibold">{form.notes || "—"}</dd>
+                </dl>
+              </div>
+            )}
+            <div className="mt-6 flex flex-wrap justify-end gap-3">
+              <button
+                type="button"
+                className="hms-button-secondary"
+                onClick={() =>
+                  confirming ? setConfirming(false) : setOpen(false)
+                }
+              >
+                Cancel
+              </button>
+              {confirming ? (
+                <button
+                  type="button"
+                  disabled={saving}
+                  className="hms-button-primary"
+                  onClick={submit}
+                >
+                  {saving ? "Adding…" : "Confirm & Add Service"}
+                </button>
+              ) : (
+                <button className="hms-button-primary">Review Service</button>
+              )}
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
 }

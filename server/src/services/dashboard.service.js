@@ -2,7 +2,9 @@ import { database } from "../db/database.js";
 
 const patientSelect = `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.cnic, p.registration_locked AS registrationLocked, p.created_at AS createdAt, d.first_name AS doctorFirstName, d.last_name AS doctorLastName FROM patients p JOIN doctors d ON d.id = p.doctor_id WHERE p.is_active = TRUE`;
 export const dashboardService = {
-  async summary({ includeFinancial = false } = {}) {
+  async summary({ includeFinancial = false, days: requestedDays = 30 } = {}) {
+    const daysInRange = [1, 7, 30].includes(requestedDays) ? requestedDays : 30;
+    const interval = daysInRange - 1;
     const [
       [patientCount],
       [todayCount],
@@ -23,7 +25,7 @@ export const dashboardService = {
         "SELECT COUNT(*) AS total FROM patients WHERE is_active = TRUE",
       ),
       database.execute(
-        "SELECT COUNT(*) AS total FROM patients WHERE is_active = TRUE AND DATE(created_at) = CURRENT_DATE",
+        `SELECT COUNT(*) AS total FROM patients WHERE is_active = TRUE AND created_at >= CURDATE() - INTERVAL ${interval} DAY`,
       ),
       database.execute(
         "SELECT COUNT(*) AS total FROM doctors WHERE is_active = TRUE",
@@ -36,17 +38,17 @@ export const dashboardService = {
         "SELECT COUNT(*) AS total FROM services WHERE is_active = FALSE",
       ),
       database.execute(
-        "SELECT COUNT(*) AS total FROM patient_services ps JOIN services s ON s.id=ps.service_id JOIN departments d ON d.id=s.department_id WHERE d.code='SUR' AND DATE(ps.created_at)=CURDATE()",
+        `SELECT COUNT(*) AS total FROM patient_services ps JOIN services s ON s.id=ps.service_id JOIN departments d ON d.id=s.department_id WHERE d.code='SUR' AND ps.created_at >= CURDATE() - INTERVAL ${interval} DAY`,
       ),
       database.execute(
-        "SELECT COUNT(*) AS total FROM patient_services ps JOIN services s ON s.id=ps.service_id JOIN departments d ON d.id=s.department_id WHERE d.code IN ('BB','BLOOD_BANK') AND DATE(ps.created_at)=CURDATE()",
+        `SELECT COUNT(*) AS total FROM patient_services ps JOIN services s ON s.id=ps.service_id JOIN departments d ON d.id=s.department_id WHERE d.code IN ('BB','BLOOD_BANK') AND ps.created_at >= CURDATE() - INTERVAL ${interval} DAY`,
       ),
       database.execute(`${patientSelect} ORDER BY p.created_at DESC LIMIT 5`),
       database.execute(
-        "SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS total FROM patients WHERE is_active = TRUE AND created_at >= CURDATE() - INTERVAL 6 DAY GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d') ORDER BY date",
+        `SELECT DATE_FORMAT(created_at, '%Y-%m-%d') AS date, COUNT(*) AS total FROM patients WHERE is_active = TRUE AND created_at >= CURDATE() - INTERVAL ${interval} DAY GROUP BY DATE_FORMAT(created_at, '%Y-%m-%d') ORDER BY date`,
       ),
       includeFinancial ? database.execute(
-        "SELECT date,SUM(total) total FROM (SELECT DATE_FORMAT(paid_at,'%Y-%m-%d') date,SUM(amount) total FROM registration_payments WHERE payment_status='PAID' AND paid_at>=CURDATE()-INTERVAL 6 DAY GROUP BY DATE_FORMAT(paid_at,'%Y-%m-%d') UNION ALL SELECT DATE_FORMAT(paid_at,'%Y-%m-%d'),SUM(amount) FROM bill_payments WHERE paid_at>=CURDATE()-INTERVAL 6 DAY GROUP BY DATE_FORMAT(paid_at,'%Y-%m-%d')) collected GROUP BY date ORDER BY date",
+        `SELECT date,SUM(total) total FROM (SELECT DATE_FORMAT(paid_at,'%Y-%m-%d') date,SUM(amount) total FROM registration_payments WHERE payment_status='PAID' AND paid_at>=CURDATE()-INTERVAL ${interval} DAY GROUP BY DATE_FORMAT(paid_at,'%Y-%m-%d') UNION ALL SELECT DATE_FORMAT(paid_at,'%Y-%m-%d'),SUM(amount) FROM bill_payments WHERE paid_at>=CURDATE()-INTERVAL ${interval} DAY GROUP BY DATE_FORMAT(paid_at,'%Y-%m-%d')) collected GROUP BY date ORDER BY date`,
       ) : Promise.resolve([[]]),
       includeFinancial ? database.execute(
         `SELECT
@@ -65,9 +67,9 @@ export const dashboardService = {
         "SELECT d.name AS department, COUNT(s.id) AS activity FROM departments d LEFT JOIN services s ON s.department_id = d.id AND s.is_active = TRUE GROUP BY d.id, d.name ORDER BY d.name",
       ),
     ]);
-    const days = Array.from({ length: 7 }, (_, index) => {
+    const days = Array.from({ length: daysInRange }, (_, index) => {
       const date = new Date();
-      date.setDate(date.getDate() - (6 - index));
+      date.setDate(date.getDate() - (daysInRange - 1 - index));
       return date.toISOString().slice(0, 10);
     });
     const totals = Object.fromEntries(

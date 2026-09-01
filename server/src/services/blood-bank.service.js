@@ -4,7 +4,7 @@ import { AppError } from "../utils/app-error.js";
 import { recalculateVisitBill } from "./visit-billing.service.js";
 
 const bloodDepartment = "d.code IN ('BB','BLOOD_BANK')";
-const patientSelect = `SELECT p.id,p.patient_number AS patientNumber,p.first_name AS firstName,p.last_name AS lastName,p.father_name AS fatherName,p.cnic,p.phone,p.address,p.created_at AS createdAt,d.id AS doctorId,d.first_name AS doctorFirstName,d.last_name AS doctorLastName,d.specialization AS doctorSpecialization,
+const patientSelect = `SELECT p.id,p.patient_number AS patientNumber,p.first_name AS firstName,p.last_name AS lastName,p.father_name AS fatherName,p.gender,p.cnic,p.phone,p.address,p.created_at AS createdAt,d.id AS doctorId,d.first_name AS doctorFirstName,d.last_name AS doctorLastName,d.specialization AS doctorSpecialization,
   v.id AS latestVisitId,v.visit_number AS latestVisitNumber,v.visit_date AS latestVisitDate,v.status AS latestVisitStatus,vd.first_name AS visitDoctorFirstName,vd.last_name AS visitDoctorLastName
   FROM patients p JOIN doctors d ON d.id=p.doctor_id
   LEFT JOIN patient_visits v ON v.id=(SELECT v2.id FROM patient_visits v2 WHERE v2.patient_id=p.id ORDER BY v2.visit_number DESC LIMIT 1)

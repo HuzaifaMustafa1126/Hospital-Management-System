@@ -10,6 +10,7 @@ const empty = {
   firstName: "",
   lastName: "",
   fatherName: "",
+  gender: "",
   cnic: "",
   phone: "",
   address: "",
@@ -96,6 +97,7 @@ export function PatientRegistrationPage() {
             "firstName",
             "lastName",
             "fatherName",
+            "gender",
             "cnic",
             "phone",
             "address",
@@ -136,6 +138,7 @@ export function PatientRegistrationPage() {
         first_name: form.firstName,
         last_name: form.lastName,
         father_name: form.fatherName,
+        gender: form.gender,
         cnic: form.cnic,
         phone: form.phone,
         address: form.address,
@@ -171,6 +174,7 @@ export function PatientRegistrationPage() {
         <dl className="mt-5 grid gap-3 sm:grid-cols-2">
           {[
             ["Patient Name", `${patient.firstName} ${patient.lastName}`],
+            ["Gender", patient.gender?.toLowerCase() || "Not specified"],
             ["CNIC", patient.cnic],
             [
               "Doctor",
@@ -282,6 +286,21 @@ export function PatientRegistrationPage() {
             )}
           </label>
         ))}
+
+        <label className="text-sm font-medium">
+          Gender
+          <select
+            required
+            className="hms-input"
+            name="gender"
+            value={form.gender}
+            onChange={change}
+          >
+            <option value="">Select gender</option>
+            <option value="MALE">Male</option>
+            <option value="FEMALE">Female</option>
+          </select>
+        </label>
 
         <label className="text-sm font-medium sm:col-span-2">
           Address

@@ -3,7 +3,7 @@ import { z } from 'zod';
 const required = (max) => z.string().trim().min(1).max(max);
 const phone = required(30).refine((value) => /^[+\d][\d\s()-]{5,29}$/.test(value), 'Enter a valid phone number');
 export const patientSchema = z.object({
-  firstName: required(100), lastName: required(100), fatherName: required(100),
+  firstName: required(100), lastName: required(100), fatherName: required(100), gender: z.enum(['MALE', 'FEMALE']),
   cnic: required(20), phone, address: required(500), doctorId: z.coerce.number().int().positive(),
   paymentMethod: z.enum(['CASH', 'CARD', 'BANK_TRANSFER', 'OTHER']), feeType: z.enum(['FREE', 'ACTUAL', 'DISCOUNTED']).default('FREE'), registrationFee: z.coerce.number().finite().min(0).max(99999999.99).optional(),
 });

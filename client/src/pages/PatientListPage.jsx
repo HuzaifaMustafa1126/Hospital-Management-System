@@ -147,7 +147,7 @@ export function PatientListPage() {
                             {patient.firstName} {patient.lastName}
                           </b>
                           <small className="text-slate-500">
-                            {patient.fatherName}
+                            {patient.fatherName} · {patient.gender?.toLowerCase() || "gender not specified"}
                           </small>
                         </span>
                       </div>

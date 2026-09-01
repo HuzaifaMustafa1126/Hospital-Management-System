@@ -9,7 +9,7 @@ const money = (value) =>
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
-const billSelect = `SELECT b.id,b.bill_number AS billNumber,b.patient_id AS patientId,b.visit_id AS visitId,b.visit_fee AS visitFee,b.services_total AS servicesTotal,b.total_amount AS grossTotal,b.amount_paid AS amountPaid,b.balance_due AS balanceDue,b.payment_status AS paymentStatus,b.created_at AS createdAt,b.updated_at AS updatedAt,p.patient_number AS patientNumber,p.first_name AS patientFirstName,p.last_name AS patientLastName,p.cnic,v.visit_number AS visitNumber,v.visit_date AS visitDate,v.status AS visitStatus,CONCAT('Dr. ',d.first_name,' ',d.last_name) AS doctorName,rp.fee_type AS feeType FROM visit_bills b JOIN patients p ON p.id=b.patient_id JOIN patient_visits v ON v.id=b.visit_id LEFT JOIN doctors d ON d.id=v.doctor_id LEFT JOIN registration_payments rp ON rp.visit_id=v.id`;
+const billSelect = `SELECT b.id,b.bill_number AS billNumber,b.patient_id AS patientId,b.visit_id AS visitId,b.visit_fee AS visitFee,b.services_total AS servicesTotal,b.total_amount AS grossTotal,b.amount_paid AS amountPaid,b.balance_due AS balanceDue,b.payment_status AS paymentStatus,b.created_at AS createdAt,b.updated_at AS updatedAt,p.patient_number AS patientNumber,p.first_name AS patientFirstName,p.last_name AS patientLastName,p.gender,p.cnic,v.visit_number AS visitNumber,v.visit_date AS visitDate,v.status AS visitStatus,CONCAT('Dr. ',d.first_name,' ',d.last_name) AS doctorName,rp.fee_type AS feeType FROM visit_bills b JOIN patients p ON p.id=b.patient_id JOIN patient_visits v ON v.id=b.visit_id LEFT JOIN doctors d ON d.id=v.doctor_id LEFT JOIN registration_payments rp ON rp.visit_id=v.id`;
 const present = (row) => ({
   ...row,
   visitFee: Number(row.visitFee),
@@ -32,7 +32,7 @@ const printableVisitNumber = (visitId, visitDate) =>
 async function getPrintContext(id) {
   const bill = await billingService.get(id);
   const [details] = await database.execute(
-    `SELECT p.father_name AS fatherName,p.phone,p.address,
+    `SELECT p.father_name AS fatherName,p.gender,p.phone,p.address,
       CONCAT(creator.first_name,' ',creator.last_name) AS createdBy
      FROM visit_bills b
      JOIN patients p ON p.id=b.patient_id
@@ -90,6 +90,7 @@ async function getPrintContext(id) {
       patientNumber: bill.patientNumber,
       name: bill.patientName,
       fatherName: details[0]?.fatherName || "",
+      gender: details[0]?.gender || "",
       cnic: bill.cnic,
       phone: details[0]?.phone || "",
       address: details[0]?.address || "",

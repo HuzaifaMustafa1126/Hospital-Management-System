@@ -4,7 +4,7 @@ import { patientListSchema, patientSchema, patientUpdateSchema } from '../valida
 const context = (req) => ({ ipAddress: req.ip, userAgent: req.get('user-agent') });
 const patientInput = (body) => Object.fromEntries(Object.entries({
   firstName: body.firstName ?? body.first_name, lastName: body.lastName ?? body.last_name,
-  fatherName: body.fatherName ?? body.father_name, cnic: body.cnic, phone: body.phone,
+  fatherName: body.fatherName ?? body.father_name, gender: body.gender, cnic: body.cnic, phone: body.phone,
   address: body.address, doctorId: body.doctorId ?? body.doctor_id,
       paymentMethod: body.paymentMethod ?? body.payment_method,
       feeType: body.feeType ?? body.fee_type, registrationFee: body.registrationFee ?? body.registration_fee,

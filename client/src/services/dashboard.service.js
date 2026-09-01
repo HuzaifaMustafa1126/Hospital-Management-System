@@ -1,4 +1,4 @@
 import { api } from "./api";
 export const dashboardService = {
-  summary: () => api.get("/dashboard/summary"),
+  summary: (days = 30) => api.get("/dashboard/summary", { params: { days } }),
 };

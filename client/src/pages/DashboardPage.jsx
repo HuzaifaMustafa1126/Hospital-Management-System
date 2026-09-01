@@ -44,17 +44,22 @@ function OperationalDashboard() {
   const admin = user?.roles.includes("SUPER_ADMIN");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [range, setRange] = useState(30);
+  const [loadingRange, setLoadingRange] = useState(false);
   useEffect(() => {
+    setLoadingRange(true);
+    setError("");
     dashboardService
-      .summary()
+      .summary(range)
       .then((response) => setData(response.data.data))
       .catch((requestError) =>
         setError(
           requestError.response?.data?.message ||
             "Unable to load dashboard data.",
         ),
-      );
-  }, []);
+      )
+      .finally(() => setLoadingRange(false));
+  }, [range]);
   if (error)
     return (
       <div className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-rose-800">
@@ -79,9 +84,9 @@ function OperationalDashboard() {
       tone: "bg-sky-50 text-sky-700",
     },
     {
-      label: "Today's Patients",
+      label: range === 1 ? "Today's Patients" : `${range}-Day Patients`,
       value: data.todayPatients,
-      note: "New registrations today",
+      note: range === 1 ? "New registrations today" : `Registrations in the last ${range} days`,
       icon: UserRoundPlus,
       tone: "bg-teal-50 text-teal-700",
     },
@@ -107,16 +112,16 @@ function OperationalDashboard() {
       tone: "bg-amber-50 text-amber-700",
     },
     {
-      label: "Surgery Services",
+      label: range === 1 ? "Surgery Services Today" : `${range}-Day Surgery Services`,
       value: data.surgeryToday,
-      note: "Surgery services added today",
+      note: range === 1 ? "Surgery services added today" : `Surgery services in the last ${range} days`,
       icon: Activity,
       tone: "bg-slate-100 text-slate-700",
     },
     {
-      label: "Blood Bank Activity",
+      label: range === 1 ? "Blood Bank Activity Today" : `${range}-Day Blood Bank Activity`,
       value: data.bloodBankToday,
-      note: "Blood Bank services added today",
+      note: range === 1 ? "Blood Bank services added today" : `Blood Bank services in the last ${range} days`,
       icon: Droplets,
       tone: "bg-rose-50 text-rose-700",
     },
@@ -177,15 +182,21 @@ function OperationalDashboard() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600">
-            <CalendarDays size={16} /> Today
-          </span>
-          <button className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700">
-            7 Days
-          </button>
-          <button className="rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white">
-            30 Days
-          </button>
+          {[
+            [1, "Today"],
+            [7, "7 Days"],
+            [30, "30 Days"],
+          ].map(([days, label]) => (
+            <button
+              type="button"
+              key={days}
+              disabled={loadingRange}
+              onClick={() => setRange(days)}
+              className={`inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition disabled:opacity-60 ${range === days ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"}`}
+            >
+              {days === 1 && <CalendarDays size={16} />} {label}
+            </button>
+          ))}
         </div>
       </section>
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -219,7 +230,9 @@ function OperationalDashboard() {
                 Patient Registration Overview
               </h3>
               <p className="mt-1 text-sm text-slate-500">
-                Daily registrations from the last 7 days
+                {range === 1
+                  ? "Registrations today"
+                  : `Daily registrations from the last ${range} days`}
               </p>
             </div>
             <span className="rounded-md bg-teal-50 px-2.5 py-1 text-xs font-medium text-teal-700">

@@ -81,6 +81,7 @@ export function PatientDetailPage({ edit = false }) {
         first_name: form.firstName,
         last_name: form.lastName,
         father_name: form.fatherName,
+        gender: form.gender,
         cnic: form.cnic,
         phone: form.phone,
         address: form.address,
@@ -138,6 +139,21 @@ export function PatientDetailPage({ edit = false }) {
                 />
               </label>
             ))}
+            <label className="text-sm font-semibold text-slate-700">
+              Gender
+              <select
+                required
+                className="hms-input"
+                value={form.gender || ""}
+                onChange={(event) =>
+                  setForm({ ...form, gender: event.target.value })
+                }
+              >
+                <option value="">Select gender</option>
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+              </select>
+            </label>
             <label className="text-sm font-semibold text-slate-700 sm:col-span-2">
               Address
               <textarea
@@ -261,6 +277,10 @@ export function PatientDetailPage({ edit = false }) {
               <Info label="First name" value={patient.firstName} />
               <Info label="Last name" value={patient.lastName} />
               <Info label="Father name" value={patient.fatherName} />
+              <Info
+                label="Gender"
+                value={patient.gender?.toLowerCase() || "Not specified"}
+              />
               <Info label="CNIC number" value={patient.cnic} />
             </dl>
           </section>

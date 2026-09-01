@@ -35,6 +35,10 @@ export function PaymentReceiptDocument({ data, format }) {
         <Row label="Patient" value={patient.name} />
         <Row label="Patient ID" value={patient.patientNumber} />
         <Row
+          label="Gender"
+          value={patient.gender?.toLowerCase() || "Not specified"}
+        />
+        <Row
           label="Visit"
           value={`${visit.visitNumber} · Visit #${visit.visitSequence}`}
         />

@@ -3,7 +3,7 @@ import { AppError } from "../utils/app-error.js";
 import { randomUUID } from "node:crypto";
 import { recalculateVisitBill } from "./visit-billing.service.js";
 
-const select = `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.father_name AS fatherName, p.cnic, p.phone, p.address, p.registration_locked AS registrationLocked, p.is_active AS isActive, p.created_at AS createdAt, p.updated_at AS updatedAt, d.id AS doctorId, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, d.specialization AS doctorSpecialization, u.id AS createdById, u.first_name AS createdByFirstName, u.last_name AS createdByLastName FROM patients p JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = p.created_by`;
+const select = `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.father_name AS fatherName, p.gender, p.cnic, p.phone, p.address, p.registration_locked AS registrationLocked, p.is_active AS isActive, p.created_at AS createdAt, p.updated_at AS updatedAt, d.id AS doctorId, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, d.specialization AS doctorSpecialization, u.id AS createdById, u.first_name AS createdByFirstName, u.last_name AS createdByLastName FROM patients p JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = p.created_by`;
 const present = (row) =>
   row && {
     ...row,
@@ -38,6 +38,7 @@ const patientData = (patient) => ({
   firstName: patient.firstName,
   lastName: patient.lastName,
   fatherName: patient.fatherName,
+  gender: patient.gender,
   cnic: patient.cnic,
   phone: patient.phone,
   address: patient.address,
@@ -162,12 +163,13 @@ export const patientService = {
         : 1;
       const patientNumber = `${prefix}${String(sequence).padStart(6, "0")}`;
       const [result] = await connection.execute(
-        "INSERT INTO patients (patient_number, first_name, last_name, father_name, cnic, phone, address, doctor_id, created_by, registration_locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)",
+        "INSERT INTO patients (patient_number, first_name, last_name, father_name, gender, cnic, phone, address, doctor_id, created_by, registration_locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)",
         [
           patientNumber,
           data.firstName,
           data.lastName,
           data.fatherName,
+          data.gender,
           cnic,
           phone,
           data.address,

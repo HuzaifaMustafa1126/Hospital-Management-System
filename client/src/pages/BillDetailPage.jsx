@@ -131,6 +131,7 @@ export function BillDetailPage() {
         <dl className="mt-5 grid gap-4 rounded-xl bg-slate-50 p-4 sm:grid-cols-4">
           {[
             ["Patient", bill.patientName],
+            ["Gender", bill.gender?.toLowerCase() || "Not specified"],
             ["Visit", `Visit #${bill.visitNumber}`],
             ["Doctor", bill.doctorName],
             ["Visit Date", new Date(bill.visitDate).toLocaleDateString()],
