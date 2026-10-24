@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertTriangle, CheckCircle2 } from "lucide-react";
-import { doctorService } from "../services/doctor.service";
+import { departmentService } from "../services/department.service";
 import { patientService } from "../services/patient.service";
-import { settingsService } from "../services/settings.service";
 import { useNotifications } from "../context/NotificationContext";
 
 const empty = {
@@ -11,10 +10,11 @@ const empty = {
   lastName: "",
   fatherName: "",
   gender: "",
+  age: "",
   cnic: "",
   phone: "",
   address: "",
-  doctorId: "",
+  departmentId: "",
   paymentMethod: "CASH",
   feeType: "FREE",
   registrationFee: "",
@@ -30,7 +30,7 @@ export function PatientRegistrationPage() {
   const { notify } = useNotifications();
 
   const [form, setForm] = useState(empty);
-  const [doctors, setDoctors] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [fee, setFee] = useState(null);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
@@ -38,11 +38,8 @@ export function PatientRegistrationPage() {
   const [duplicates, setDuplicates] = useState({ cnic: null, phone: null });
 
   useEffect(() => {
-    doctorService
-      .list()
-      .then((r) => setDoctors(r.data.data.filter((d) => d.isActive)));
-
-    settingsService.registrationFee().then((r) => setFee(r.data.data));
+    departmentService.list({ status: "active", page: 1, limit: 100 })
+      .then((r) => setDepartments(r.data.data.departments));
   }, []);
 
   const change = (e) =>
@@ -98,10 +95,11 @@ export function PatientRegistrationPage() {
             "lastName",
             "fatherName",
             "gender",
+            "age",
             "cnic",
             "phone",
             "address",
-            "doctorId",
+            "departmentId",
           ].includes(k),
         )
         .every(([, v]) => String(v).trim())
@@ -139,10 +137,11 @@ export function PatientRegistrationPage() {
         last_name: form.lastName,
         father_name: form.fatherName,
         gender: form.gender,
+        age: Number(form.age),
         cnic: form.cnic,
         phone: form.phone,
         address: form.address,
-        doctor_id: Number(form.doctorId),
+        department_id: Number(form.departmentId),
         payment_method: form.paymentMethod,
         fee_type: form.feeType,
         registration_fee: registrationFee,
@@ -163,7 +162,7 @@ export function PatientRegistrationPage() {
   const createVisit = (patient) => navigate(`/patients/${patient.id}/visits/new`);
 
   if (result) {
-    const { patient, payment } = result;
+    const { patient, payment, visit } = result;
 
     return (
       <div className="max-w-2xl hms-card p-6">
@@ -177,8 +176,8 @@ export function PatientRegistrationPage() {
             ["Gender", patient.gender?.toLowerCase() || "Not specified"],
             ["CNIC", patient.cnic],
             [
-              "Doctor",
-              `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}`,
+              "Department",
+              visit.departmentName,
             ],
             ["Registration Fee Type", payment.feeType],
             ["Registration Fee", `PKR ${payment.amount}`],
@@ -301,35 +300,32 @@ export function PatientRegistrationPage() {
             <option value="FEMALE">Female</option>
           </select>
         </label>
-
-        <label className="text-sm font-medium sm:col-span-2">
-          Address
-          <textarea
-            required
-            className="hms-input"
-            name="address"
-            value={form.address}
-            onChange={change}
-          />
-        </label>
-
         <label className="text-sm font-medium">
-          Doctor
+          Age
+          <input required inputMode="numeric" pattern="^(?:[0-9]|[1-9][0-9]|1[01][0-9]|120)$" type="text" className="hms-input" name="age" value={form.age} onChange={(event) => { const value=event.target.value.replace(/\D/g, '').slice(0,3); if(value===''||Number(value)<=120) setForm((current)=>({...current,age:value})); }} placeholder="Enter patient age" />
+        </label>
+        <label className="text-sm font-medium">
+          Department
           <select
             required
             className="hms-input"
-            name="doctorId"
-            value={form.doctorId}
-            onChange={change}
+            name="departmentId"
+            value={form.departmentId}
+            onChange={(event) => { const department=departments.find((item)=>String(item.id)===event.target.value); setForm((current)=>({...current,departmentId:event.target.value,registrationFee:""})); setFee(department ? {amount:department.registrationFee} : null); }}
           >
-            <option value="">Select doctor</option>
+            <option value="">Select department</option>
 
-            {doctors.map((d) => (
+            {departments.map((d) => (
               <option key={d.id} value={d.id}>
-                Dr. {d.firstName} {d.lastName}
+                {d.name}
               </option>
             ))}
           </select>
+        </label>
+
+        <label className="text-sm font-medium sm:col-span-2">
+          Address
+          <textarea required className="hms-input" name="address" value={form.address} onChange={change} />
         </label>
 
         <label className="text-sm font-medium">
@@ -400,7 +396,7 @@ export function PatientRegistrationPage() {
               <b>ACTUAL FEE</b>
 
               <span className="mt-1 block text-sm text-slate-500">
-                Standard registration fee
+                Selected department fee
               </span>
 
               <span className="mt-2 block text-lg font-semibold text-slate-800">
@@ -408,7 +404,7 @@ export function PatientRegistrationPage() {
               </span>
 
               <span className="mt-1 block text-xs text-slate-400">
-                Amount from Settings
+                Amount configured for department
               </span>
             </label>
 
@@ -468,7 +464,7 @@ export function PatientRegistrationPage() {
             Cancel
           </button>
 
-          <button disabled={saving || !fee} className="hms-button-primary">
+          <button disabled={saving || !fee || !form.departmentId} className="hms-button-primary">
             {saving ? "Registering…" : "Confirm Registration"}
           </button>
         </div>

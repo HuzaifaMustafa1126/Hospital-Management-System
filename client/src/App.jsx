@@ -35,6 +35,8 @@ import { BillDetailPage } from "./pages/BillDetailPage";
 import { InvoicePreviewPage } from "./pages/InvoicePreviewPage";
 import { PaymentReceiptPage } from "./pages/PaymentReceiptPage";
 import { HospitalSettingsPage } from "./pages/HospitalSettingsPage";
+import { DoctorDashboardPage } from "./pages/DoctorDashboardPage";
+import { RolesPermissionsPage } from "./pages/RolesPermissionsPage";
 
 export function App() {
   return (
@@ -113,6 +115,9 @@ export function App() {
           </Route>
 
           {/* Laboratory Routes */}
+          <Route element={<RoleProtectedRoute roles={["DOCTOR"]} />}>
+            <Route path="/doctor/queue" element={<DoctorDashboardPage />} />
+          </Route>
           <Route
             element={
               <RoleProtectedRoute roles={["LAB_ATTENDANT", "SUPER_ADMIN"]} />
@@ -159,8 +164,15 @@ export function App() {
           </Route>
 
           {/* Super Admin Routes */}
+          <Route element={<PermissionProtectedRoute permissions={["USER_VIEW"]} />}>
+            <Route path="/access/users" element={<UsersPage />} />
+          </Route>
+          <Route element={<PermissionProtectedRoute permissions={["ROLE_VIEW"]} />}>
+            <Route path="/access/roles" element={<RolesPermissionsPage />} />
+          </Route>
           <Route element={<RoleProtectedRoute roles={["SUPER_ADMIN"]} />}>
             <Route path="/users" element={<UsersPage />} />
+            <Route path="/roles" element={<RolesPermissionsPage />} />
 
             <Route path="/users/new" element={<UserDetailPage />} />
 

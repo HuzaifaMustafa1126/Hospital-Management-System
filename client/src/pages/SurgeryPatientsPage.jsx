@@ -92,7 +92,7 @@ export function SurgeryPatientsPage() {
                   <div>
                     <small className="hms-label">Doctor</small>
                     <p className="text-sm text-slate-700">
-                      Dr. {patient.doctor.firstName} {patient.doctor.lastName}
+                      {patient.doctor ? `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}` : "Assigned per visit"}
                     </p>
                     <span className="mt-1 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
                       REGISTERED

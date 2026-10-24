@@ -1,0 +1,12 @@
+import { Router } from 'express';
+import { roleController } from '../controllers/role.controller.js';
+import { authenticate,requirePermission } from '../middleware/auth.middleware.js';
+import { asyncHandler } from '../utils/async-handler.js';
+export const roleRouter=Router();roleRouter.use(authenticate);
+roleRouter.get('/',requirePermission('ROLE_VIEW'),asyncHandler(roleController.list));
+roleRouter.post('/',requirePermission('ROLE_CREATE'),asyncHandler(roleController.create));
+roleRouter.patch('/:id',requirePermission('ROLE_UPDATE'),asyncHandler(roleController.update));
+roleRouter.delete('/:id',requirePermission('ROLE_DELETE'),asyncHandler(roleController.remove));
+roleRouter.get('/:id/permissions',requirePermission('ROLE_VIEW','PERMISSION_VIEW'),asyncHandler(roleController.permissions));
+roleRouter.put('/:id/permissions',requirePermission('ROLE_UPDATE','PERMISSION_ASSIGN'),asyncHandler(roleController.setPermissions));
+export const permissionRouter=Router();permissionRouter.use(authenticate);permissionRouter.get('/',requirePermission('PERMISSION_VIEW'),asyncHandler(roleController.catalog));

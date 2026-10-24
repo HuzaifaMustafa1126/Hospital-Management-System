@@ -1,0 +1,11 @@
+import { Router } from "express";
+import { doctorWorkflowController } from "../controllers/doctor-workflow.controller.js";
+import { authenticate, requirePermission } from "../middleware/auth.middleware.js";
+import { asyncHandler } from "../utils/async-handler.js";
+export const doctorWorkflowRouter=Router();
+doctorWorkflowRouter.use(authenticate);
+doctorWorkflowRouter.get('/queue',requirePermission('DOCTOR_QUEUE_VIEW'),asyncHandler(doctorWorkflowController.queue));
+doctorWorkflowRouter.get('/queue/visits/:id/details',requirePermission('DOCTOR_QUEUE_VIEW','VISIT_VIEW'),asyncHandler(doctorWorkflowController.details));
+doctorWorkflowRouter.post('/visits/:id/claim',requirePermission('VISIT_CLAIM'),asyncHandler(doctorWorkflowController.claim));
+doctorWorkflowRouter.get('/visits/:id/short-stay-orders',requirePermission('SHORT_STAY_ORDER_VIEW'),asyncHandler(doctorWorkflowController.orders));
+doctorWorkflowRouter.post('/visits/:id/short-stay-orders',requirePermission('SHORT_STAY_ORDER_CREATE'),asyncHandler(doctorWorkflowController.addOrder));

@@ -106,7 +106,7 @@ export function LaboratoryPatientPage() {
             ["Address", patient.address],
             [
               "Doctor",
-              `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}`,
+              patient.doctor ? `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}` : "Assigned per visit",
             ],
             [
               "Registration date",

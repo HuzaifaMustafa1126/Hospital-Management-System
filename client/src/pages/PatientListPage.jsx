@@ -160,7 +160,7 @@ export function PatientListPage() {
                       {patient.phone}
                     </td>
                     <td className="px-4 py-4 text-slate-600">
-                      Dr. {patient.doctor.firstName} {patient.doctor.lastName}
+                      {patient.doctor ? `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}` : "Assigned per visit"}
                     </td>
                     <td className="px-4 py-4 text-slate-600">
                       {new Date(patient.createdAt).toLocaleDateString()}

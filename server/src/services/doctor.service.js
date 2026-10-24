@@ -1,7 +1,7 @@
 import { database } from '../db/database.js';
 import { AppError } from '../utils/app-error.js';
 
-const columns = 'id, first_name AS firstName, last_name AS lastName, specialization, phone, license_number AS licenseNumber, is_active AS isActive, created_at AS createdAt, updated_at AS updatedAt';
+const columns = 'id, user_id AS userId, first_name AS firstName, last_name AS lastName, specialization, availability, phone, license_number AS licenseNumber, is_active AS isActive, created_at AS createdAt, updated_at AS updatedAt';
 const clean = (value) => value || null;
 export const doctorService = {
   async list({ activeOnly = false } = {}) { const [rows] = await database.execute(`SELECT ${columns} FROM doctors ${activeOnly ? 'WHERE is_active = TRUE' : ''} ORDER BY first_name, last_name`); return rows.map((row) => ({ ...row, isActive: Boolean(row.isActive) })); },
@@ -9,4 +9,6 @@ export const doctorService = {
   async create(data) { const [result] = await database.execute('INSERT INTO doctors (first_name, last_name, specialization, phone, license_number) VALUES (?, ?, ?, ?, ?)', [data.firstName, data.lastName, clean(data.specialization), clean(data.phone), clean(data.licenseNumber)]); return this.get(result.insertId); },
   async update(id, data) { await this.get(id); const fields = { firstName: 'first_name', lastName: 'last_name', specialization: 'specialization', phone: 'phone', licenseNumber: 'license_number' }; const changes = Object.entries(fields).filter(([key]) => key in data); await database.execute(`UPDATE doctors SET ${changes.map(([, column]) => `${column} = ?`).join(', ')} WHERE id = ?`, [...changes.map(([key]) => clean(data[key])), id]); return this.get(id); },
   async setStatus(id, isActive) { await this.get(id); await database.execute('UPDATE doctors SET is_active = ? WHERE id = ?', [isActive, id]); return this.get(id); },
+  async departments(id) { await this.get(id); const [rows] = await database.execute('SELECT d.id,d.name,d.code,dd.is_active AS isActive FROM doctor_departments dd JOIN departments d ON d.id=dd.department_id WHERE dd.doctor_id=? ORDER BY d.name',[id]); return rows.map((row)=>({...row,isActive:Boolean(row.isActive)})); },
+  async setDepartments(id, departmentIds) { await this.get(id); const connection=await database.getConnection(); try { await connection.beginTransaction(); if(departmentIds.length){ const placeholders=departmentIds.map(()=>'?').join(','); const [valid]=await connection.execute(`SELECT id FROM departments WHERE id IN (${placeholders}) AND deleted_at IS NULL`,departmentIds); if(valid.length!==new Set(departmentIds).size) throw new AppError(400,'One or more departments are invalid.'); } await connection.execute('UPDATE doctor_departments SET is_active=FALSE WHERE doctor_id=?',[id]); for(const departmentId of new Set(departmentIds)) await connection.execute('INSERT INTO doctor_departments (doctor_id,department_id,is_active) VALUES (?,?,TRUE) ON DUPLICATE KEY UPDATE is_active=TRUE',[id,departmentId]); await connection.commit(); return this.departments(id); } catch(error){await connection.rollback();throw error;} finally{connection.release();} },
 };

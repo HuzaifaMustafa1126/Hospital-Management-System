@@ -3,116 +3,20 @@ import { randomUUID } from 'node:crypto';
 import { database } from '../db/database.js';
 import { AppError } from '../utils/app-error.js';
 
-const listQuery = `
-  SELECT u.id, u.first_name AS firstName, u.last_name AS lastName, u.email, u.phone,
-         u.is_active AS isActive, u.created_at AS createdAt, u.updated_at AS updatedAt,
-         r.name AS roleName
-  FROM users u
-  LEFT JOIN user_roles ur ON ur.user_id = u.id
-  LEFT JOIN roles r ON r.id = ur.role_id`;
-
-const toUsers = (rows) => {
-  const users = new Map();
-  for (const row of rows) {
-    if (!users.has(row.id)) {
-      users.set(row.id, {
-        id: row.id, firstName: row.firstName, lastName: row.lastName, email: row.email,
-        phone: row.phone, isActive: Boolean(row.isActive), createdAt: row.createdAt,
-        updatedAt: row.updatedAt, roles: [], userRoles: [],
-      });
-    }
-    if (row.roleName) {
-      const user = users.get(row.id);
-      user.roles.push(row.roleName);
-      user.userRoles.push({ role: { name: row.roleName } });
-    }
-  }
-  return [...users.values()];
-};
-
-const findById = async (id) => {
-  const [rows] = await database.execute(`${listQuery} WHERE u.id = ?`, [id]);
-  return toUsers(rows)[0] ?? null;
-};
-
-const roleId = async (connection, role) => {
-  const [roles] = await connection.execute('SELECT id FROM roles WHERE name = ?', [role]);
-  if (!roles.length) throw new AppError(400, 'Invalid role');
-  return roles[0].id;
-};
-
-export const userService = {
-  async list() {
-    const [rows] = await database.execute(`${listQuery} ORDER BY u.created_at DESC`);
-    return toUsers(rows);
-  },
-
-  async get(id) {
-    const user = await findById(id);
-    if (!user) throw new AppError(404, 'User not found');
-    return user;
-  },
-
-  async create({ firstName, lastName, email, phone, password, role, isActive }) {
-    const normalizedEmail = email.toLowerCase();
-    const [existing] = await database.execute('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
-    if (existing.length) throw new AppError(409, 'User already exists.');
-
-    const connection = await database.getConnection();
-    const id = randomUUID();
-    try {
-      await connection.beginTransaction();
-      await connection.execute(
-        'INSERT INTO users (id, first_name, last_name, email, phone, password_hash, is_active) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [id, firstName, lastName, normalizedEmail, phone || null, await bcrypt.hash(password, 12), isActive],
-      );
-      await connection.execute('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)', [id, await roleId(connection, role)]);
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-    return this.get(id);
-  },
-
-  async update(id, data) {
-    const previous = await this.get(id);
-    if (data.email) {
-      const [existing] = await database.execute('SELECT id FROM users WHERE email = ?', [data.email.toLowerCase()]);
-      if (existing.length && existing[0].id !== id) throw new AppError(409, 'An account with this email already exists');
-    }
-    const connection = await database.getConnection();
-    try {
-      await connection.beginTransaction();
-      const fields = { firstName: 'first_name', lastName: 'last_name', email: 'email', phone: 'phone' };
-      const updates = Object.entries(fields).filter(([key]) => key in data);
-      if (updates.length) {
-        await connection.execute(
-          `UPDATE users SET ${updates.map(([, column]) => `${column} = ?`).join(', ')} WHERE id = ?`,
-          [...updates.map(([key]) => key === 'email' ? data[key].toLowerCase() : data[key] || null), id],
-        );
-      }
-      if (data.role) {
-        await connection.execute('DELETE FROM user_roles WHERE user_id = ?', [id]);
-        await connection.execute('INSERT INTO user_roles (user_id, role_id) VALUES (?, ?)', [id, await roleId(connection, data.role)]);
-      }
-      await connection.commit();
-    } catch (error) {
-      await connection.rollback();
-      throw error;
-    } finally {
-      connection.release();
-    }
-    return { previous, user: await this.get(id) };
-  },
-
-  async setStatus(id, isActive, actorId) {
-    if (!isActive && id === actorId) throw new AppError(400, 'You cannot deactivate your own account');
-    const previous = await this.get(id);
-    await database.execute('UPDATE users SET is_active = ? WHERE id = ?', [isActive, id]);
-    return { previous, user: await this.get(id) };
-  },
-  async resetPassword(id, password) { await this.get(id); await database.execute('UPDATE users SET password_hash = ? WHERE id = ?', [await bcrypt.hash(password, 12), id]); return this.get(id); },
+const base=`SELECT u.id,u.first_name AS firstName,u.last_name AS lastName,u.email,u.phone,u.status,u.is_active AS isActive,u.created_at AS createdAt,u.updated_at AS updatedAt,GROUP_CONCAT(DISTINCT CONCAT(r.id,':',r.name) SEPARATOR '|') roleData,GROUP_CONCAT(DISTINCT CONCAT(d.id,':',d.name) SEPARATOR '|') departmentData FROM users u LEFT JOIN user_roles ur ON ur.user_id=u.id LEFT JOIN roles r ON r.id=ur.role_id LEFT JOIN user_departments ud ON ud.user_id=u.id LEFT JOIN departments d ON d.id=ud.department_id`;
+const parse=(value)=>(value?value.split('|').map((item)=>{const position=item.indexOf(':');return {id:item.slice(0,position),name:item.slice(position+1)};}):[]);
+const present=(row)=>row&&({...row,isActive:Boolean(row.isActive),roles:parse(row.roleData).map((r)=>r.name),roleRecords:parse(row.roleData),departments:parse(row.departmentData).map((d)=>({...d,id:Number(d.id)})),roleData:undefined,departmentData:undefined});
+async function get(id,connection=database){const [rows]=await connection.execute(`${base} WHERE u.id=? GROUP BY u.id`,[id]);if(!rows.length)throw new AppError(404,'User not found');return present(rows[0]);}
+async function validateAssignments(connection,roleIds,departmentIds){if(roleIds){const unique=[...new Set(roleIds)];const placeholders=unique.map(()=>'?').join(',');const [roles]=await connection.execute(`SELECT id,is_active AS isActive FROM roles WHERE id IN (${placeholders})`,unique);if(roles.length!==unique.length||roles.some((r)=>!r.isActive))throw new AppError(400,'One or more roles are invalid or inactive.');}if(departmentIds?.length){const unique=[...new Set(departmentIds)];const placeholders=unique.map(()=>'?').join(',');const [departments]=await connection.execute(`SELECT id FROM departments WHERE id IN (${placeholders}) AND is_active=TRUE AND deleted_at IS NULL`,unique);if(departments.length!==unique.length)throw new AppError(400,'One or more departments are invalid or inactive.');}}
+async function protectSuperAdmin(connection,targetId,actorId,nextRoleIds=null,nextStatus=null){const [assigned]=await connection.execute(`SELECT r.id FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=? AND r.name='SUPER_ADMIN'`,[targetId]);if(!assigned.length)return;const removing=(nextStatus&&nextStatus!=='ACTIVE')||(nextRoleIds&&!nextRoleIds.includes(assigned[0].id));if(targetId===actorId&&removing)throw new AppError(400,'You cannot remove your own Super Admin access.');if(removing){const [[count]]=await connection.execute(`SELECT COUNT(DISTINCT u.id) total FROM users u JOIN user_roles ur ON ur.user_id=u.id JOIN roles r ON r.id=ur.role_id WHERE r.name='SUPER_ADMIN' AND u.status='ACTIVE' AND u.deleted_at IS NULL`);if(Number(count.total)<=1)throw new AppError(400,'The last active Super Admin cannot be removed or deactivated.');}}
+async function syncDoctorProfile(connection,userId){const [users]=await connection.execute(`SELECT u.first_name AS firstName,u.last_name AS lastName,u.phone,u.status,EXISTS(SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=u.id AND r.name='DOCTOR' AND r.is_active=TRUE) isDoctor FROM users u WHERE u.id=?`,[userId]);if(!users.length)return;const user=users[0];const [profiles]=await connection.execute('SELECT id FROM doctors WHERE user_id=?',[userId]);if(!user.isDoctor){if(profiles.length)await connection.execute("UPDATE doctors SET availability='INACTIVE',is_active=FALSE WHERE id=?",[profiles[0].id]);return;}let doctorId=profiles[0]?.id;if(!doctorId){const [result]=await connection.execute("INSERT INTO doctors(user_id,first_name,last_name,phone,availability,is_active) VALUES(?,?,?,?,?,?)",[userId,user.firstName,user.lastName,user.phone||null,user.status==='ACTIVE'?'AVAILABLE':'INACTIVE',user.status==='ACTIVE']);doctorId=result.insertId;}else await connection.execute("UPDATE doctors SET first_name=?,last_name=?,phone=?,availability=IF(?='ACTIVE',IF(availability='INACTIVE','AVAILABLE',availability),'INACTIVE'),is_active=(?='ACTIVE') WHERE id=?",[user.firstName,user.lastName,user.phone||null,user.status,user.status,doctorId]);await connection.execute('UPDATE doctor_departments SET is_active=FALSE WHERE doctor_id=?',[doctorId]);const [departments]=await connection.execute('SELECT department_id AS departmentId FROM user_departments WHERE user_id=?',[userId]);for(const {departmentId} of departments)await connection.execute('INSERT INTO doctor_departments(doctor_id,department_id,is_active) VALUES(?,?,TRUE) ON DUPLICATE KEY UPDATE is_active=TRUE',[doctorId,departmentId]);}
+export const userService={
+ async list(query={}){const page=query.page||1,limit=query.limit||20,offset=(page-1)*limit;const clauses=['u.deleted_at IS NULL'],params=[];if(query.search){clauses.push('(u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?)');const term=`%${query.search}%`;params.push(term,term,term,term);}if(query.status){clauses.push('u.status=?');params.push(query.status);}if(query.roleId){clauses.push('EXISTS(SELECT 1 FROM user_roles x WHERE x.user_id=u.id AND x.role_id=?)');params.push(query.roleId);}if(query.departmentId){clauses.push('EXISTS(SELECT 1 FROM user_departments x WHERE x.user_id=u.id AND x.department_id=?)');params.push(query.departmentId);}const where=` WHERE ${clauses.join(' AND ')}`;const [[counts],[rows]]=await Promise.all([database.execute(`SELECT COUNT(*) total,SUM(status='ACTIVE') active,SUM(status='INACTIVE') inactive,SUM(status='SUSPENDED') suspended FROM users u${where}`,params),database.execute(`${base}${where} GROUP BY u.id ORDER BY u.created_at DESC LIMIT ${limit} OFFSET ${offset}`,params)]);const total=Number(counts[0].total);return {users:rows.map(present),summary:{total,active:Number(counts[0].active||0),inactive:Number(counts[0].inactive||0),suspended:Number(counts[0].suspended||0)},pagination:{page,limit,total,totalPages:Math.ceil(total/limit)}};},
+ async get(id){return get(id);},
+ async create(data,actorId){const normalizedEmail=data.email.toLowerCase(),connection=await database.getConnection(),id=randomUUID();try{await connection.beginTransaction();const [existing]=await connection.execute('SELECT id FROM users WHERE email=?',[normalizedEmail]);if(existing.length)throw new AppError(409,'An account with this email already exists.');await validateAssignments(connection,data.roleIds,data.departmentIds);const [superRoles]=await connection.execute("SELECT id FROM roles WHERE name='SUPER_ADMIN'");if(superRoles.some((role)=>data.roleIds.includes(role.id))){const [actorSuper]=await connection.execute("SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=? AND r.name='SUPER_ADMIN'",[actorId]);if(!actorSuper.length)throw new AppError(403,'Only a Super Admin can grant Super Admin access.');}await connection.execute('INSERT INTO users(id,first_name,last_name,email,phone,password_hash,is_active,status) VALUES(?,?,?,?,?,?,?,?)',[id,data.firstName,data.lastName,normalizedEmail,data.phone||null,await bcrypt.hash(data.password,12),data.status==='ACTIVE',data.status]);for(const roleId of new Set(data.roleIds))await connection.execute('INSERT INTO user_roles(user_id,role_id) VALUES(?,?)',[id,roleId]);for(const departmentId of new Set(data.departmentIds))await connection.execute('INSERT INTO user_departments(user_id,department_id) VALUES(?,?)',[id,departmentId]);await syncDoctorProfile(connection,id);await connection.commit();return get(id);}catch(error){await connection.rollback();throw error;}finally{connection.release();}},
+ async update(id,data){const previous=await get(id);if(data.email){const [existing]=await database.execute('SELECT id FROM users WHERE email=? AND id<>?',[data.email.toLowerCase(),id]);if(existing.length)throw new AppError(409,'An account with this email already exists.');}const connection=await database.getConnection();try{await connection.beginTransaction();const fields={firstName:'first_name',lastName:'last_name',email:'email',phone:'phone'};const changes=Object.entries(fields).filter(([key])=>key in data);if(changes.length)await connection.execute(`UPDATE users SET ${changes.map(([,column])=>`${column}=?`).join(',')} WHERE id=?`,[...changes.map(([key])=>key==='email'?data[key].toLowerCase():data[key]||null),id]);await syncDoctorProfile(connection,id);await connection.commit();return {previous,user:await get(id)};}catch(error){await connection.rollback();throw error;}finally{connection.release();}},
+ async setRoles(id,roleIds,actorId){const connection=await database.getConnection();try{await connection.beginTransaction();await get(id,connection);await validateAssignments(connection,roleIds);const [superRoles]=await connection.execute("SELECT id FROM roles WHERE name='SUPER_ADMIN'");const requestedSuper=superRoles.some((role)=>roleIds.includes(role.id));if(requestedSuper){const [actorSuper]=await connection.execute("SELECT 1 FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=? AND r.name='SUPER_ADMIN'",[actorId]);if(!actorSuper.length)throw new AppError(403,'Only a Super Admin can grant Super Admin access.');if(id===actorId)throw new AppError(400,'You cannot change your own Super Admin assignment.');}await protectSuperAdmin(connection,id,actorId,roleIds);await connection.execute('DELETE FROM user_roles WHERE user_id=?',[id]);for(const roleId of new Set(roleIds))await connection.execute('INSERT INTO user_roles(user_id,role_id) VALUES(?,?)',[id,roleId]);await syncDoctorProfile(connection,id);await connection.commit();return get(id);}catch(error){await connection.rollback();throw error;}finally{connection.release();}},
+ async setDepartments(id,departmentIds){const connection=await database.getConnection();try{await connection.beginTransaction();await get(id,connection);await validateAssignments(connection,null,departmentIds);await connection.execute('DELETE FROM user_departments WHERE user_id=?',[id]);for(const departmentId of new Set(departmentIds))await connection.execute('INSERT INTO user_departments(user_id,department_id) VALUES(?,?)',[id,departmentId]);await syncDoctorProfile(connection,id);await connection.commit();return get(id);}catch(error){await connection.rollback();throw error;}finally{connection.release();}},
+ async setStatus(id,status,actorId){const connection=await database.getConnection();try{await connection.beginTransaction();const previous=await get(id,connection);await protectSuperAdmin(connection,id,actorId,null,status);await connection.execute('UPDATE users SET status=?,is_active=? WHERE id=?',[status,status==='ACTIVE',id]);await syncDoctorProfile(connection,id);await connection.commit();return {previous,user:await get(id)};}catch(error){await connection.rollback();throw error;}finally{connection.release();}},
+ async resetPassword(id,password){await get(id);await database.execute('UPDATE users SET password_hash=? WHERE id=?',[await bcrypt.hash(password,12),id]);return get(id);},
 };

@@ -180,7 +180,7 @@ export function BloodBankPatientPage() {
           <Info label="Address" value={patient.address} />
           <Info
             label="Doctor"
-            value={`Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}`}
+            value={patient.doctor ? `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}` : "Assigned per visit"}
           />
           <Info
             label="Registration Date"

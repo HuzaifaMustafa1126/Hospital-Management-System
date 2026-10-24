@@ -82,7 +82,7 @@ export function LaboratoryPatientsPage() {
                         {patient.phone} · {patient.gender?.toLowerCase() || "gender not specified"}
                       </span>
                       <p className="mt-1 text-xs text-slate-500">
-                        Dr. {patient.doctor.firstName} {patient.doctor.lastName}{" "}
+                        {patient.doctor ? `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}` : "Assigned per visit"}{" "}
                         · REGISTERED
                       </p>
                     </div>

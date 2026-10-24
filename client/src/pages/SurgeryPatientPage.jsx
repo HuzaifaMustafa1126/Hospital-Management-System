@@ -156,11 +156,11 @@ export function SurgeryPatientPage() {
             <dl className="mt-4 space-y-4">
               <Info
                 label="Doctor Name"
-                value={`Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}`}
+                value={patient.doctor ? `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}` : "Assigned per visit"}
               />
               <Info
                 label="Specialization"
-                value={patient.doctor.specialization}
+                value={patient.doctor?.specialization || "Assigned per visit"}
               />
             </dl>
           </section>

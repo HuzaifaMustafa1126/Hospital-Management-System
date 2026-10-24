@@ -10,7 +10,7 @@ const pagination = z.object({
   status: z.enum(['active', 'inactive', 'all']).optional().default('all'),
 });
 
-export const departmentCreateSchema = z.object({ name: text(150), code: text(30).transform((value) => value.toUpperCase()), description: optionalText(500) });
+export const departmentCreateSchema = z.object({ name: text(150), code: text(30).transform((value) => value.toUpperCase()), description: optionalText(500), registrationFee: z.coerce.number().finite().min(0).max(99999999.99) });
 export const departmentUpdateSchema = departmentCreateSchema.partial().refine((value) => Object.keys(value).length > 0, 'At least one field is required');
 export const departmentStatusSchema = z.object({ isActive: z.boolean() });
 export const departmentListSchema = pagination;

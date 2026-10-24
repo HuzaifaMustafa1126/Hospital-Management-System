@@ -12,6 +12,7 @@ const roles = [
   ],
   ["BLOOD_BANK_STAFF", "Blood bank staff access"],
   ["BILLING_STAFF", "Billing department staff access"],
+  ["DOCTOR", "Doctor consultation and ordering access"],
 ];
 const permissions = [
   "PATIENT_CREATE",
@@ -49,6 +50,19 @@ const permissions = [
   "REGISTRATION_FEE_COLLECT",
   "REGISTRATION_FEE_RECEIPT_VIEW",
   "REGISTRATION_FEE_RECEIPT_PRINT",
+  "DOCTOR_QUEUE_VIEW",
+  "VISIT_CLAIM",
+  "VISIT_STATUS_UPDATE",
+  "SHORT_STAY_ORDER_CREATE",
+  "SHORT_STAY_ORDER_VIEW",
+  "ROLE_VIEW",
+  "ROLE_CREATE",
+  "ROLE_UPDATE",
+  "ROLE_DELETE",
+  "PERMISSION_VIEW",
+  "PERMISSION_ASSIGN",
+  "USER_DEACTIVATE",
+  "USER_DEPARTMENT_ASSIGN",
 ];
 const receptionPermissions = [
   "PATIENT_CREATE",
@@ -102,6 +116,7 @@ async function seedAccessControl(connection) {
       "INSERT INTO permissions (id, name) VALUES (?, ?) ON DUPLICATE KEY UPDATE name = VALUES(name)",
       [randomUUID(), name],
     );
+  await connection.execute(`UPDATE permissions SET display_name=COALESCE(display_name,CONCAT(UCASE(LEFT(REPLACE(name,'_',' '),1)),LCASE(SUBSTRING(REPLACE(name,'_',' '),2)))), module=CASE WHEN name LIKE 'PATIENT%' THEN 'Patients' WHEN name LIKE 'VISIT%' THEN 'Visits' WHEN name LIKE 'DOCTOR%' THEN 'Doctors' WHEN name LIKE 'SHORT_STAY%' THEN 'Short Stay' WHEN name LIKE 'BILL%' OR name LIKE 'PAYMENT%' OR name LIKE 'REVENUE%' OR name LIKE 'REGISTRATION_FEE%' THEN 'Billing' WHEN name LIKE 'USER%' THEN 'Users' WHEN name LIKE 'ROLE%' OR name LIKE 'PERMISSION%' THEN 'Roles & Permissions' WHEN name LIKE 'AUDIT%' THEN 'Audit' WHEN name LIKE 'HOSPITAL_SETTINGS%' THEN 'Settings' ELSE 'Clinical Services' END`);
   const [roleRows] = await connection.execute("SELECT id, name FROM roles");
   const [permissionRows] = await connection.execute(
     "SELECT id, name FROM permissions",
@@ -133,6 +148,8 @@ async function seedAccessControl(connection) {
         "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
         [roleIds[role], permissionIds[name]],
       );
+  for (const name of ["PATIENT_VIEW","PATIENT_SEARCH","VISIT_VIEW","DOCTOR_QUEUE_VIEW","VISIT_CLAIM","VISIT_STATUS_UPDATE","SHORT_STAY_ORDER_CREATE","SHORT_STAY_ORDER_VIEW"])
+    await connection.execute("INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)", [roleIds.DOCTOR, permissionIds[name]]);
   await connection.execute(
     "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
     [roleIds.LAB_ATTENDANT, permissionIds.LAB_SERVICE_ADD],
@@ -197,6 +214,12 @@ async function seedAccessControl(connection) {
       [firstName, lastName, specialization, licenseNumber],
     );
   const departments = [
+    ["Emergency", "EMERGENCY", "Emergency patient care"],
+    ["Gyne", "GYNE", "Gynecology outpatient care"],
+    ["Eye", "EYE", "Ophthalmology outpatient care"],
+    ["Dialysis", "DIALYSIS", "Dialysis services"],
+    ["Peds OPD", "PEDS-OPD", "Pediatric outpatient care"],
+    ["General OPD", "GENERAL-OPD", "General outpatient care"],
     ["Laboratory", "LAB", "Laboratory diagnostic services"],
     ["Radiology", "RAD", "Diagnostic imaging services"],
     ["Surgery", "SUR", "Surgical services"],
@@ -273,6 +296,8 @@ export async function initializeDatabase({ log = false } = {}) {
       await connection.query(
         "ALTER TABLE patients ADD COLUMN gender ENUM('MALE','FEMALE') NULL AFTER father_name",
       );
+    const [patientAgeColumn] = await connection.query("SHOW COLUMNS FROM patients LIKE 'age'");
+    if (!patientAgeColumn.length) await connection.query("ALTER TABLE patients ADD COLUMN age TINYINT UNSIGNED NULL AFTER gender");
     const [patientCnicUnique] = await connection.query(
       "SHOW INDEX FROM patients WHERE Key_name='uq_patients_cnic'",
     );
@@ -290,6 +315,23 @@ export async function initializeDatabase({ log = false } = {}) {
     await connection.query(
       "ALTER TABLE permissions MODIFY name VARCHAR(191) NOT NULL",
     );
+    for (const [column, definition] of [
+      ["display_name", "VARCHAR(191) NULL AFTER name"],
+      ["module", "VARCHAR(100) NOT NULL DEFAULT 'General' AFTER display_name"],
+      ["is_active", "BOOLEAN NOT NULL DEFAULT TRUE AFTER description"],
+    ]) { const [columns]=await connection.query(`SHOW COLUMNS FROM permissions LIKE '${column}'`); if(!columns.length) await connection.query(`ALTER TABLE permissions ADD COLUMN ${column} ${definition}`); }
+    for (const [column, definition] of [
+      ["slug", "VARCHAR(191) NULL AFTER name"],
+      ["is_system", "BOOLEAN NOT NULL DEFAULT FALSE AFTER description"],
+      ["is_active", "BOOLEAN NOT NULL DEFAULT TRUE AFTER is_system"],
+    ]) { const [columns]=await connection.query(`SHOW COLUMNS FROM roles LIKE '${column}'`); if(!columns.length) await connection.query(`ALTER TABLE roles ADD COLUMN ${column} ${definition}`); }
+    await connection.query("UPDATE roles SET slug=LOWER(REPLACE(name,'_','-')),is_system=TRUE WHERE slug IS NULL");
+    const [roleSlugIndex]=await connection.query("SHOW INDEX FROM roles WHERE Key_name='uq_roles_slug'"); if(!roleSlugIndex.length) await connection.query("ALTER TABLE roles ADD UNIQUE KEY uq_roles_slug(slug)");
+    for (const [column, definition] of [
+      ["status", "ENUM('ACTIVE','INACTIVE','SUSPENDED') NOT NULL DEFAULT 'ACTIVE' AFTER is_active"],
+      ["deleted_at", "TIMESTAMP NULL AFTER status"],
+    ]) { const [columns]=await connection.query(`SHOW COLUMNS FROM users LIKE '${column}'`); if(!columns.length) await connection.query(`ALTER TABLE users ADD COLUMN ${column} ${definition}`); }
+    await connection.query(`CREATE TABLE IF NOT EXISTS user_departments (user_id VARCHAR(191) NOT NULL, department_id BIGINT UNSIGNED NOT NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(user_id,department_id), KEY idx_user_departments_department(department_id,user_id), CONSTRAINT user_departments_user_fkey FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE, CONSTRAINT user_departments_department_fkey FOREIGN KEY(department_id) REFERENCES departments(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
     const [auditDetailsColumn] = await connection.query(
       "SHOW COLUMNS FROM audit_logs LIKE 'details'",
     );
@@ -310,6 +352,29 @@ export async function initializeDatabase({ log = false } = {}) {
     await connection.query(
       `CREATE TABLE IF NOT EXISTS patient_visits (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_id BIGINT UNSIGNED NOT NULL, visit_number INT UNSIGNED NOT NULL, visit_date DATE NOT NULL, doctor_id BIGINT UNSIGNED NULL, created_by VARCHAR(191) NULL, status ENUM('OPEN','COMPLETED','CANCELLED') NOT NULL DEFAULT 'OPEN', created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY uq_patient_visits_number (patient_id, visit_number), KEY idx_patient_visits_patient_date (patient_id, visit_date), CONSTRAINT patient_visits_patient_fkey FOREIGN KEY (patient_id) REFERENCES patients(id), CONSTRAINT patient_visits_doctor_fkey FOREIGN KEY (doctor_id) REFERENCES doctors(id), CONSTRAINT patient_visits_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     );
+    for (const [column, definition] of [
+      ["registration_fee", "DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER description"],
+      ["deleted_at", "TIMESTAMP NULL AFTER is_active"],
+    ]) {
+      const [columns] = await connection.query(`SHOW COLUMNS FROM departments LIKE '${column}'`);
+      if (!columns.length) await connection.query(`ALTER TABLE departments ADD COLUMN ${column} ${definition}`);
+    }
+    await connection.query("UPDATE departments SET registration_fee=COALESCE(NULLIF(registration_fee,0),(SELECT CAST(setting_value AS DECIMAL(10,2)) FROM settings WHERE setting_key='REGISTRATION_FEE' LIMIT 1),0)");
+    const [patientDoctor] = await connection.query("SHOW COLUMNS FROM patients LIKE 'doctor_id'");
+    if (patientDoctor[0]?.Null === "NO") await connection.query("ALTER TABLE patients MODIFY doctor_id BIGINT UNSIGNED NULL");
+    const [visitDepartment] = await connection.query("SHOW COLUMNS FROM patient_visits LIKE 'department_id'");
+    if (!visitDepartment.length) await connection.query("ALTER TABLE patient_visits ADD COLUMN department_id BIGINT UNSIGNED NULL AFTER patient_id, ADD KEY idx_patient_visits_department_status (department_id,status), ADD CONSTRAINT patient_visits_department_fkey FOREIGN KEY (department_id) REFERENCES departments(id)");
+    const [visitFeeSnapshot] = await connection.query("SHOW COLUMNS FROM patient_visits LIKE 'registration_fee_snapshot'");
+    if (!visitFeeSnapshot.length) await connection.query("ALTER TABLE patient_visits ADD COLUMN registration_fee_snapshot DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER doctor_id, ADD COLUMN fee_type ENUM('FREE','ACTUAL','DISCOUNTED') NOT NULL DEFAULT 'FREE' AFTER registration_fee_snapshot");
+    await connection.query("ALTER TABLE patient_visits MODIFY status ENUM('OPEN','WAITING','IN_CONSULTATION','SHORT_STAY','COMPLETED','CANCELLED') NOT NULL DEFAULT 'WAITING'");
+    const [claimedAtColumn]=await connection.query("SHOW COLUMNS FROM patient_visits LIKE 'claimed_at'");
+    if(!claimedAtColumn.length) await connection.query("ALTER TABLE patient_visits ADD COLUMN claimed_at DATETIME NULL AFTER status");
+    const [doctorUser] = await connection.query("SHOW COLUMNS FROM doctors LIKE 'user_id'");
+    if (!doctorUser.length) await connection.query("ALTER TABLE doctors ADD COLUMN user_id VARCHAR(191) NULL AFTER id, ADD UNIQUE KEY uq_doctors_user (user_id), ADD CONSTRAINT doctors_user_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL");
+    const [doctorAvailability] = await connection.query("SHOW COLUMNS FROM doctors LIKE 'availability'");
+    if (!doctorAvailability.length) await connection.query("ALTER TABLE doctors ADD COLUMN availability ENUM('AVAILABLE','BUSY','OFF_DUTY','INACTIVE') NOT NULL DEFAULT 'AVAILABLE' AFTER specialization");
+    await connection.query(`CREATE TABLE IF NOT EXISTS doctor_departments (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, doctor_id BIGINT UNSIGNED NOT NULL, department_id BIGINT UNSIGNED NOT NULL, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(id), UNIQUE KEY uq_doctor_department(doctor_id,department_id), KEY idx_doctor_departments_department(department_id,is_active), CONSTRAINT doctor_departments_doctor_fkey FOREIGN KEY(doctor_id) REFERENCES doctors(id), CONSTRAINT doctor_departments_department_fkey FOREIGN KEY(department_id) REFERENCES departments(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+    await connection.query(`CREATE TABLE IF NOT EXISTS short_stay_orders (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_id BIGINT UNSIGNED NOT NULL, visit_id BIGINT UNSIGNED NOT NULL, doctor_id BIGINT UNSIGNED NOT NULL, medicine_name VARCHAR(255) NOT NULL, dose VARCHAR(100) NOT NULL, route ENUM('IV','IM') NOT NULL, quantity VARCHAR(100) NOT NULL, status ENUM('ORDERED','IN_PROGRESS','COMPLETED','CANCELLED') NOT NULL DEFAULT 'ORDERED', created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY(id), KEY idx_short_stay_visit_created(visit_id,created_at), CONSTRAINT short_stay_patient_fkey FOREIGN KEY(patient_id) REFERENCES patients(id), CONSTRAINT short_stay_visit_fkey FOREIGN KEY(visit_id) REFERENCES patient_visits(id), CONSTRAINT short_stay_doctor_fkey FOREIGN KEY(doctor_id) REFERENCES doctors(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
     await connection.query(
       `CREATE TABLE IF NOT EXISTS visit_bills (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, visit_id BIGINT UNSIGNED NOT NULL, patient_id BIGINT UNSIGNED NOT NULL, visit_fee DECIMAL(10,2) NOT NULL, services_total DECIMAL(12,2) NOT NULL, total_amount DECIMAL(12,2) NOT NULL, created_by VARCHAR(191) NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY uq_visit_bills_visit (visit_id), KEY idx_visit_bills_patient (patient_id), CONSTRAINT visit_bills_visit_fkey FOREIGN KEY (visit_id) REFERENCES patient_visits(id), CONSTRAINT visit_bills_patient_fkey FOREIGN KEY (patient_id) REFERENCES patients(id), CONSTRAINT visit_bills_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     );
@@ -402,6 +467,14 @@ export async function initializeDatabase({ log = false } = {}) {
     );
     if (log) console.log("Tables verified.");
     await seedAccessControl(connection);
+    await connection.query(`INSERT INTO doctors (user_id,first_name,last_name,phone,availability,is_active)
+      SELECT u.id,u.first_name,u.last_name,u.phone,IF(u.status='ACTIVE','AVAILABLE','INACTIVE'),u.status='ACTIVE'
+      FROM users u JOIN user_roles ur ON ur.user_id=u.id JOIN roles r ON r.id=ur.role_id
+      LEFT JOIN doctors d ON d.user_id=u.id
+      WHERE r.name='DOCTOR' AND d.id IS NULL`);
+    await connection.query(`INSERT INTO doctor_departments (doctor_id,department_id,is_active)
+      SELECT d.id,ud.department_id,TRUE FROM doctors d JOIN user_departments ud ON ud.user_id=d.user_id
+      ON DUPLICATE KEY UPDATE is_active=TRUE`);
     if (log) {
       console.log("Roles verified.");
       console.log("Permissions verified.");

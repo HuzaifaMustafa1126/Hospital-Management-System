@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, Search, Trash2 } from "lucide-react";
-import { doctorService } from "../services/doctor.service";
+import { departmentService } from "../services/department.service";
 import { patientService } from "../services/patient.service";
 import { serviceService } from "../services/service.service";
-import { settingsService } from "../services/settings.service";
 import { useNotifications } from "../context/NotificationContext";
 
 const money = (amount) => `PKR ${Number(amount || 0).toLocaleString()}`;
@@ -14,10 +13,10 @@ export function NewVisitPage() {
   const navigate = useNavigate();
   const { notify } = useNotifications();
   const [patient, setPatient] = useState(null);
-  const [doctors, setDoctors] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [services, setServices] = useState([]);
   const [configuredFee, setConfiguredFee] = useState(null);
-  const [form, setForm] = useState({ doctorId: "", feeType: "FREE", visitFee: "", paymentMethod: "CASH" });
+  const [form, setForm] = useState({ departmentId: "", feeType: "FREE", visitFee: "", paymentMethod: "CASH" });
   const [selectedIds, setSelectedIds] = useState([]);
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
@@ -26,17 +25,14 @@ export function NewVisitPage() {
   useEffect(() => {
     Promise.all([
       patientService.get(id),
-      doctorService.list(),
+      departmentService.list({ status: "active", page: 1, limit: 100 }),
       serviceService.list({ status: "active", limit: 100 }),
-      settingsService.registrationFee(),
     ])
-      .then(([patientResponse, doctorResponse, serviceResponse, feeResponse]) => {
+      .then(([patientResponse, departmentResponse, serviceResponse]) => {
         const loadedPatient = patientResponse.data.data;
         setPatient(loadedPatient);
-        setForm((current) => ({ ...current, doctorId: String(loadedPatient.doctor.id) }));
-        setDoctors(doctorResponse.data.data.filter((doctor) => doctor.isActive));
+        setDepartments(departmentResponse.data.data.departments);
         setServices(serviceResponse.data.data.services);
-        setConfiguredFee(Number(feeResponse.data.data.amount));
       })
       .catch((requestError) => setError(requestError.response?.data?.message || "Unable to load the new visit form."));
   }, [id]);
@@ -50,13 +46,13 @@ export function NewVisitPage() {
   const submit = async (event) => {
     event.preventDefault();
     setError("");
-    if (!form.doctorId) return setError("Select a doctor.");
+    if (!form.departmentId) return setError("Select a department.");
     if (form.feeType === "DISCOUNTED" && (!Number.isFinite(feeAmount) || feeAmount < 0 || feeAmount > configuredFee))
       return setError(`Visit fee must be between PKR 0 and PKR ${configuredFee}.`);
     setSaving(true);
     try {
       const response = await patientService.createVisit(id, {
-        doctorId: Number(form.doctorId), paymentMethod: form.paymentMethod,
+        departmentId: Number(form.departmentId), paymentMethod: form.paymentMethod,
         feeType: form.feeType, visitFee: feeAmount, serviceIds: selectedIds,
       });
       notify({ type: "success", title: "Visit Created", message: `Visit #${response.data.data.visitNumber} was created successfully.` });
@@ -80,7 +76,7 @@ export function NewVisitPage() {
           </dl>}
         </section>
         <section className="hms-card grid gap-5 p-6 sm:grid-cols-2">
-          <label className="text-sm font-semibold text-slate-700">Doctor<select required className="hms-input" value={form.doctorId} onChange={(e) => setForm({ ...form, doctorId: e.target.value })}><option value="">Select doctor</option>{doctors.map((doctor) => <option key={doctor.id} value={doctor.id}>Dr. {doctor.firstName} {doctor.lastName}{doctor.specialization ? ` — ${doctor.specialization}` : ''}</option>)}</select></label>
+          <label className="text-sm font-semibold text-slate-700">Department<select required className="hms-input" value={form.departmentId} onChange={(e) => { const department=departments.find((item)=>String(item.id)===e.target.value); setForm({ ...form, departmentId:e.target.value, visitFee:"" }); setConfiguredFee(department ? Number(department.registrationFee) : null); }}><option value="">Select department</option>{departments.map((department) => <option key={department.id} value={department.id}>{department.name}</option>)}</select></label>
           <label className="text-sm font-semibold text-slate-700">Payment method<select className="hms-input" value={form.paymentMethod} onChange={(e) => setForm({ ...form, paymentMethod: e.target.value })}><option value="CASH">Cash</option><option value="CARD">Card</option><option value="BANK_TRANSFER">Bank transfer</option><option value="OTHER">Other</option></select></label>
           <fieldset className="sm:col-span-2"><legend className="text-sm font-semibold text-slate-700">Fee Type</legend><div className="mt-2 flex flex-wrap gap-3">{['FREE', 'ACTUAL', 'DISCOUNTED'].map((type) => <label key={type} className={`cursor-pointer rounded-xl border px-5 py-3 text-sm font-bold ${form.feeType === type ? 'border-teal-600 bg-teal-50 text-teal-800' : 'border-slate-200'}`}><input className="sr-only" type="radio" name="feeType" value={type} checked={form.feeType === type} onChange={(e) => setForm({ ...form, feeType: e.target.value, visitFee: '' })} />{type === 'ACTUAL' ? `ACTUAL — ${money(configuredFee)}` : type}</label>)}</div></fieldset>
           {form.feeType === 'DISCOUNTED' && <label className="text-sm font-semibold text-slate-700 sm:col-span-2">Registration / Visit Fee<input required min="0" max={configuredFee ?? undefined} step="0.01" type="number" className="hms-input" value={form.visitFee} onChange={(e) => setForm({ ...form, visitFee: e.target.value })} /><span className="mt-1 block text-xs font-normal text-slate-500">Maximum configured fee: {money(configuredFee)}</span></label>}

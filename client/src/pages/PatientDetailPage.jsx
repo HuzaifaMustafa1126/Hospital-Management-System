@@ -42,7 +42,7 @@ export function PatientDetailPage({ edit = false }) {
         setPatient(response.data.data);
         setForm({
           ...response.data.data,
-          doctorId: String(response.data.data.doctor.id),
+          doctorId: response.data.data.doctor ? String(response.data.data.doctor.id) : "",
         });
       })
       .catch((requestError) =>
@@ -82,10 +82,10 @@ export function PatientDetailPage({ edit = false }) {
         last_name: form.lastName,
         father_name: form.fatherName,
         gender: form.gender,
+        age: form.age === "" || form.age == null ? undefined : Number(form.age),
         cnic: form.cnic,
         phone: form.phone,
         address: form.address,
-        doctor_id: Number(form.doctorId),
       });
       navigate(`/patients/${id}`);
     } catch (requestError) {
@@ -125,6 +125,7 @@ export function PatientDetailPage({ edit = false }) {
               ["firstName", "First name"],
               ["lastName", "Last name"],
               ["fatherName", "Father name"],
+              ["age", "Age"],
               ["cnic", "CNIC number"],
               ["phone", "Phone number"],
             ].map(([key, label]) => (
@@ -193,7 +194,9 @@ export function PatientDetailPage({ edit = false }) {
         </section>
       </div>
     );
-  const doctorName = `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}`;
+  const doctorName = patient.doctor ? `Dr. ${patient.doctor.firstName} ${patient.doctor.lastName}` : "Assigned per visit";
+  const latestVisit = visits[0] || null;
+  const currentDoctorName = latestVisit?.doctorName && latestVisit.doctorName !== "—" ? latestVisit.doctorName : doctorName;
   const servicesByVisit = Object.values((patient.services || []).reduce((groups, service) => {
     const key = service.visitId || "legacy";
     if (!groups[key]) groups[key] = { visitNumber: service.visitNumber, visitDate: service.visitDate, departments: {} };
@@ -231,7 +234,7 @@ export function PatientDetailPage({ edit = false }) {
                   {patient.patientNumber}
                 </p>
                 <p className="mt-2 flex items-center gap-1.5 text-sm text-slate-500">
-                  <Stethoscope size={15} /> {doctorName}
+                  <Stethoscope size={15} /> {currentDoctorName}
                 </p>
               </div>
             </div>
@@ -255,7 +258,7 @@ export function PatientDetailPage({ edit = false }) {
           <div className="p-4">
             <p className="hms-label">Assigned doctor</p>
             <p className="mt-1 truncate text-sm font-bold text-slate-800">
-              {doctorName}
+              {currentDoctorName}
             </p>
           </div>
           <div className="p-4">
@@ -281,6 +284,7 @@ export function PatientDetailPage({ edit = false }) {
                 label="Gender"
                 value={patient.gender?.toLowerCase() || "Not specified"}
               />
+              <Info label="Age" value={patient.age == null ? "Not recorded" : `${patient.age} years`} />
               <Info label="CNIC number" value={patient.cnic} />
             </dl>
           </section>
@@ -309,10 +313,10 @@ export function PatientDetailPage({ edit = false }) {
               <h3 className="font-bold text-slate-900">Doctor</h3>
             </div>
             <p className="mt-4 text-sm font-semibold text-slate-800">
-              {doctorName}
+              {currentDoctorName}
             </p>
             <p className="mt-1 text-sm text-slate-500">
-              {patient.doctor.specialization || "General practice"}
+              {latestVisit?.departmentName || patient.doctor?.specialization || "No department assigned"}
             </p>
           </section>
           <section className="hms-card p-5">

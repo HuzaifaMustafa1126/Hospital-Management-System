@@ -1,16 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { userService } from "../services/user.service";
+import { roleService } from "../services/role.service";
+import { departmentService } from "../services/department.service";
 import { useNotifications } from "../context/NotificationContext";
 
-const roles = [
-  "SUPER_ADMIN",
-  "RECEPTION",
-  "LAB_ATTENDANT",
-  "SURGERY_STAFF",
-  "BLOOD_BANK_STAFF",
-  "BILLING_STAFF",
-];
 const blank = {
   firstName: "",
   lastName: "",
@@ -18,8 +12,7 @@ const blank = {
   phone: "",
   password: "",
   confirmPassword: "",
-  role: "RECEPTION",
-  isActive: true,
+  roleIds: [], departmentIds: [], status: "ACTIVE",
 };
 
 export function UserDetailPage() {
@@ -31,8 +24,10 @@ export function UserDetailPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(!creating);
   const [saving, setSaving] = useState(false);
+  const [roles,setRoles]=useState([]); const [departments,setDepartments]=useState([]);
   useEffect(() => {
-    if (creating) return;
+    Promise.all([roleService.list(),departmentService.list({status:'active',page:1,limit:100})]).then(([roleResponse,departmentResponse])=>{setRoles(roleResponse.data.data.filter((role)=>role.isActive));setDepartments(departmentResponse.data.data.departments);}).catch(()=>{});
+    if (creating) { setLoading(false); return; }
     userService
       .get(id)
       .then((response) => {
@@ -44,8 +39,7 @@ export function UserDetailPage() {
           phone: user.phone || "",
           password: "",
           confirmPassword: "",
-          role: user.roles?.[0] || "RECEPTION",
-          isActive: user.isActive,
+          roleIds: user.roleRecords?.map((role)=>role.id)||[], departmentIds:user.departments?.map((department)=>department.id)||[], status:user.status,
         });
       })
       .catch((e) =>
@@ -69,9 +63,9 @@ export function UserDetailPage() {
         const { confirmPassword, ...data } = form;
         await userService.create(data);
       } else {
-        const { password, confirmPassword, isActive, ...changes } = form;
+        const { password, confirmPassword, status, roleIds, departmentIds, ...changes } = form;
         await userService.update(id, changes);
-        await userService.status(id, isActive);
+        await userService.roles(id,roleIds); await userService.departments(id,departmentIds); await userService.status(id,status);
       }
       notify({
         type: "success",
@@ -134,7 +128,6 @@ export function UserDetailPage() {
             value={form.email}
             onChange={change}
             required
-            disabled={!creating}
           />
         </label>
         <label className="text-sm font-medium">
@@ -154,7 +147,7 @@ export function UserDetailPage() {
                 className="mt-1 w-full rounded border p-2"
                 name="password"
                 type="password"
-                minLength="8"
+                minLength="10"
                 value={form.password}
                 onChange={change}
                 required
@@ -166,7 +159,7 @@ export function UserDetailPage() {
                 className="mt-1 w-full rounded border p-2"
                 name="confirmPassword"
                 type="password"
-                minLength="8"
+                minLength="10"
                 value={form.confirmPassword}
                 onChange={change}
                 required
@@ -174,36 +167,17 @@ export function UserDetailPage() {
             </label>
           </>
         )}
-        <label className="text-sm font-medium">
-          Role
-          <select
-            className="mt-1 w-full rounded border p-2"
-            name="role"
-            value={form.role}
-            onChange={change}
-          >
-            {roles.map((role) => (
-              <option key={role} value={role}>
-                {role}
-              </option>
-            ))}
-          </select>
-        </label>
+        <fieldset className="sm:col-span-2"><legend className="text-sm font-medium">Roles</legend><div className="mt-2 grid gap-2 sm:grid-cols-2">{roles.map((role)=><label className="rounded-lg border p-3 text-sm" key={role.id}><input className="mr-2" type="checkbox" checked={form.roleIds.includes(role.id)} onChange={()=>setForm((current)=>({...current,roleIds:current.roleIds.includes(role.id)?current.roleIds.filter((idValue)=>idValue!==role.id):[...current.roleIds,role.id]}))}/>{role.name}</label>)}</div></fieldset>
+        <fieldset className="sm:col-span-2"><legend className="text-sm font-medium">Departments</legend><div className="mt-2 grid gap-2 sm:grid-cols-2">{departments.map((department)=><label className="rounded-lg border p-3 text-sm" key={department.id}><input className="mr-2" type="checkbox" checked={form.departmentIds.includes(department.id)} onChange={()=>setForm((current)=>({...current,departmentIds:current.departmentIds.includes(department.id)?current.departmentIds.filter((idValue)=>idValue!==department.id):[...current.departmentIds,department.id]}))}/>{department.name}</label>)}</div></fieldset>
         <label className="text-sm font-medium">
           Status
           <select
             className="mt-1 w-full rounded border p-2"
-            name="isActive"
-            value={String(form.isActive)}
-            onChange={(event) =>
-              setForm((current) => ({
-                ...current,
-                isActive: event.target.value === "true",
-              }))
-            }
+            name="status"
+            value={form.status}
+            onChange={change}
           >
-            <option value="true">ACTIVE</option>
-            <option value="false">INACTIVE</option>
+            <option value="ACTIVE">ACTIVE</option><option value="INACTIVE">INACTIVE</option><option value="SUSPENDED">SUSPENDED</option>
           </select>
         </label>
         <button disabled={saving} className="rounded-lg bg-sky-700 px-4 py-2 font-medium text-white disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2">

@@ -3,18 +3,18 @@ import { AppError } from "../utils/app-error.js";
 import { randomUUID } from "node:crypto";
 import { recalculateVisitBill } from "./visit-billing.service.js";
 
-const select = `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.father_name AS fatherName, p.gender, p.cnic, p.phone, p.address, p.registration_locked AS registrationLocked, p.is_active AS isActive, p.created_at AS createdAt, p.updated_at AS updatedAt, d.id AS doctorId, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, d.specialization AS doctorSpecialization, u.id AS createdById, u.first_name AS createdByFirstName, u.last_name AS createdByLastName FROM patients p JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = p.created_by`;
+const select = `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.father_name AS fatherName, p.gender, p.age, p.cnic, p.phone, p.address, p.registration_locked AS registrationLocked, p.is_active AS isActive, p.created_at AS createdAt, p.updated_at AS updatedAt, d.id AS doctorId, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, d.specialization AS doctorSpecialization, u.id AS createdById, u.first_name AS createdByFirstName, u.last_name AS createdByLastName FROM patients p LEFT JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = p.created_by`;
 const present = (row) =>
   row && {
     ...row,
     registrationLocked: Boolean(row.registrationLocked),
     isActive: Boolean(row.isActive),
-    doctor: {
+    doctor: row.doctorId ? {
       id: row.doctorId,
       firstName: row.doctorFirstName,
       lastName: row.doctorLastName,
       specialization: row.doctorSpecialization,
-    },
+    } : null,
     createdBy: {
       id: row.createdById,
       firstName: row.createdByFirstName,
@@ -39,10 +39,11 @@ const patientData = (patient) => ({
   lastName: patient.lastName,
   fatherName: patient.fatherName,
   gender: patient.gender,
+  age: patient.age,
   cnic: patient.cnic,
   phone: patient.phone,
   address: patient.address,
-  doctorId: patient.doctor.id,
+  doctorId: patient.doctor?.id ?? null,
   isActive: patient.isActive,
 });
 const presentPayment = (row) => ({
@@ -73,14 +74,6 @@ async function getById(id, connection = database) {
   const [rows] = await connection.execute(`${select} WHERE p.id = ?`, [id]);
   if (!rows.length) throw new AppError(404, "Patient not found");
   return present(rows[0]);
-}
-async function activeDoctor(id, connection) {
-  const [rows] = await connection.execute(
-    "SELECT id FROM doctors WHERE id = ? AND is_active = TRUE",
-    [id],
-  );
-  if (!rows.length)
-    throw new AppError(400, "Selected doctor was not found or is inactive");
 }
 async function registrationAudit(
   connection,
@@ -135,7 +128,8 @@ export const patientService = {
           "Unable to reserve a patient number. Please try again.",
         );
       await connection.beginTransaction();
-      await activeDoctor(data.doctorId, connection);
+      const [departments] = await connection.execute("SELECT id,name,registration_fee AS registrationFee FROM departments WHERE id=? AND is_active=TRUE AND deleted_at IS NULL FOR UPDATE", [data.departmentId]);
+      if (!departments.length) throw new AppError(400, "Selected department was not found or is inactive", [], "departmentId");
       const cnicDuplicate = await findDuplicate("cnic", cnic, connection);
       if (cnicDuplicate)
         throw new AppError(
@@ -163,29 +157,26 @@ export const patientService = {
         : 1;
       const patientNumber = `${prefix}${String(sequence).padStart(6, "0")}`;
       const [result] = await connection.execute(
-        "INSERT INTO patients (patient_number, first_name, last_name, father_name, gender, cnic, phone, address, doctor_id, created_by, registration_locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, TRUE)",
+        "INSERT INTO patients (patient_number, first_name, last_name, father_name, gender, age, cnic, phone, address, doctor_id, created_by, registration_locked) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, TRUE)",
         [
           patientNumber,
           data.firstName,
           data.lastName,
           data.fatherName,
           data.gender,
+          data.age,
           cnic,
           phone,
           data.address,
-          data.doctorId,
           actorId,
         ],
       );
       const patient = await getById(result.insertId, connection);
       const [visitResult] = await connection.execute(
-        "INSERT INTO patient_visits (patient_id, visit_number, visit_date, doctor_id, created_by, status) VALUES (?, 1, CURDATE(), ?, ?, 'OPEN')",
-        [patient.id, data.doctorId, actorId],
+        "INSERT INTO patient_visits (patient_id, department_id, visit_number, visit_date, doctor_id, registration_fee_snapshot, fee_type, created_by, status) VALUES (?, ?, 1, CURDATE(), NULL, ?, ?, ?, 'WAITING')",
+        [patient.id, data.departmentId, 0, data.feeType || "FREE", actorId],
       );
-      const [feeRows] = await connection.execute(
-        "SELECT setting_value AS amount FROM settings WHERE setting_key = 'REGISTRATION_FEE' FOR UPDATE",
-      );
-      const configuredFee = Number(feeRows[0]?.amount);
+      const configuredFee = Number(departments[0].registrationFee);
       if (!Number.isFinite(configuredFee) || configuredFee < 0)
         throw new AppError(500, "Registration fee is not configured correctly");
       const feeType = data.feeType || "FREE";
@@ -200,6 +191,7 @@ export const patientService = {
           [],
           "registrationFee",
         );
+      await connection.execute("UPDATE patient_visits SET registration_fee_snapshot=?, fee_type=? WHERE id=?", [amount, feeType, visitResult.insertId]);
       const receiptPrefix = `REC-${year}-`;
       const [latestReceipt] = await connection.execute(
         "SELECT receipt_number AS receiptNumber FROM registration_payments WHERE receipt_number LIKE ? ORDER BY receipt_number DESC LIMIT 1 FOR UPDATE",
@@ -219,7 +211,7 @@ export const patientService = {
         ],
       );
       const [paymentRows] = await connection.execute(
-        `SELECT rp.id, rp.receipt_number AS receiptNumber, rp.amount, rp.fee_type AS feeType, rp.payment_method AS paymentMethod, rp.payment_status AS paymentStatus, rp.paid_at AS paidAt, p.id AS patientId, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.cnic, p.father_name AS fatherName, CONCAT('Dr. ', d.first_name, ' ', d.last_name) AS doctorName, u.id AS receivedById, u.first_name AS receivedByFirstName, u.last_name AS receivedByLastName FROM registration_payments rp JOIN patients p ON p.id = rp.patient_id JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = rp.received_by WHERE rp.id = ?`,
+        `SELECT rp.id, rp.receipt_number AS receiptNumber, rp.amount, rp.fee_type AS feeType, rp.payment_method AS paymentMethod, rp.payment_status AS paymentStatus, rp.paid_at AS paidAt, p.id AS patientId, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.cnic, p.father_name AS fatherName, NULL AS doctorName, u.id AS receivedById, u.first_name AS receivedByFirstName, u.last_name AS receivedByLastName FROM registration_payments rp JOIN patients p ON p.id = rp.patient_id JOIN users u ON u.id = rp.received_by WHERE rp.id = ?`,
         [paymentResult.insertId],
       );
       const payment = presentPayment(paymentRows[0]);
@@ -260,7 +252,7 @@ export const patientService = {
         ],
       );
       await connection.commit();
-      return { patient, payment };
+      return { patient, payment, visit: { id: visitResult.insertId, visitNumber: 1, departmentId: Number(data.departmentId), departmentName: departments[0].name, status: "WAITING" } };
     } catch (error) {
       await connection.rollback();
       throw error;
@@ -334,7 +326,6 @@ export const patientService = {
     const connection = await database.getConnection();
     try {
       await connection.beginTransaction();
-      if (data.doctorId) await activeDoctor(data.doctorId, connection);
       const changes = {
         firstName: "first_name",
         lastName: "last_name",
@@ -342,7 +333,8 @@ export const patientService = {
         cnic: "cnic",
         phone: "phone",
         address: "address",
-        doctorId: "doctor_id",
+        gender: "gender",
+        age: "age",
       };
       const entries = Object.entries(changes).filter(([key]) => key in data);
       const values = entries.map(([key]) =>

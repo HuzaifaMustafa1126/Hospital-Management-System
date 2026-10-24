@@ -2,7 +2,7 @@ import { database } from "../db/database.js";
 import { AppError } from "../utils/app-error.js";
 import { randomUUID } from "node:crypto";
 import { recalculateVisitBill } from "./visit-billing.service.js";
-const select = `SELECT v.id, v.patient_id AS patientId, v.visit_number AS visitNumber, v.visit_date AS visitDate, v.status, v.created_at AS createdAt, v.updated_at AS updatedAt, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, p.patient_number AS patientNumber, p.first_name AS patientFirstName, p.last_name AS patientLastName, p.cnic AS patientCnic, p.phone AS patientPhone, COALESCE(rp.amount, 0) AS visitFee, rp.fee_type AS feeType, COALESCE(SUM(ps.total_amount), 0) AS servicesTotal, COUNT(ps.id) AS servicesCount,b.id AS billId,b.bill_number AS billNumber,b.amount_paid AS amountPaid,b.balance_due AS balanceDue,b.payment_status AS paymentStatus FROM patient_visits v JOIN patients p ON p.id=v.patient_id LEFT JOIN doctors d ON d.id=v.doctor_id LEFT JOIN registration_payments rp ON rp.visit_id=v.id LEFT JOIN patient_services ps ON ps.visit_id=v.id LEFT JOIN visit_bills b ON b.visit_id=v.id`;
+const select = `SELECT v.id, v.patient_id AS patientId, v.department_id AS departmentId, dep.name AS departmentName, dep.code AS departmentCode, v.visit_number AS visitNumber, v.visit_date AS visitDate, v.status, v.created_at AS createdAt, v.updated_at AS updatedAt, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, p.patient_number AS patientNumber, p.first_name AS patientFirstName, p.last_name AS patientLastName, p.cnic AS patientCnic, p.phone AS patientPhone, COALESCE(rp.amount, v.registration_fee_snapshot, 0) AS visitFee, COALESCE(rp.fee_type,v.fee_type) AS feeType, COALESCE(SUM(ps.total_amount), 0) AS servicesTotal, COUNT(ps.id) AS servicesCount,b.id AS billId,b.bill_number AS billNumber,b.amount_paid AS amountPaid,b.balance_due AS balanceDue,b.payment_status AS paymentStatus FROM patient_visits v JOIN patients p ON p.id=v.patient_id LEFT JOIN departments dep ON dep.id=v.department_id LEFT JOIN doctors d ON d.id=v.doctor_id LEFT JOIN registration_payments rp ON rp.visit_id=v.id LEFT JOIN patient_services ps ON ps.visit_id=v.id LEFT JOIN visit_bills b ON b.visit_id=v.id`;
 const present = (row) => ({
   ...row,
   doctorName: row.doctorFirstName
@@ -54,15 +54,12 @@ export const visitService = {
         [patientId],
       );
       if (!patients.length) throw new AppError(404, "Patient not found.");
-      const [doctors] = await connection.execute(
-        "SELECT id, first_name AS firstName, last_name AS lastName FROM doctors WHERE id=? AND is_active=TRUE",
-        [data.doctorId],
+      const [departments] = await connection.execute(
+        "SELECT id,name,registration_fee AS registrationFee FROM departments WHERE id=? AND is_active=TRUE AND deleted_at IS NULL FOR UPDATE",
+        [data.departmentId],
       );
-      if (!doctors.length) throw new AppError(400, "Selected doctor was not found or is inactive.");
-      const [feeRows] = await connection.execute(
-        "SELECT setting_value AS amount FROM settings WHERE setting_key='REGISTRATION_FEE' FOR UPDATE",
-      );
-      const configuredFee = Number(feeRows[0]?.amount);
+      if (!departments.length) throw new AppError(400, "Selected department was not found or is inactive.");
+      const configuredFee = Number(departments[0].registrationFee);
       const visitFee = data.feeType === "FREE" ? 0 : data.feeType === "ACTUAL" ? configuredFee : Number(data.visitFee);
       if (!Number.isFinite(configuredFee) || configuredFee < 0)
         throw new AppError(500, "Registration fee is not configured correctly.");
@@ -90,8 +87,8 @@ export const visitService = {
       );
       const visitNumber = (latest[0]?.visitNumber || 0) + 1;
       const [result] = await connection.execute(
-        "INSERT INTO patient_visits (patient_id, visit_number, visit_date, doctor_id, created_by, status) VALUES (?, ?, CURDATE(), ?, ?, 'OPEN')",
-        [patientId, visitNumber, data.doctorId, actorId],
+        "INSERT INTO patient_visits (patient_id, department_id, visit_number, visit_date, doctor_id, registration_fee_snapshot, fee_type, created_by, status) VALUES (?, ?, ?, CURDATE(), NULL, ?, ?, ?, 'WAITING')",
+        [patientId, data.departmentId, visitNumber, visitFee, data.feeType, actorId],
       );
       const year = new Date().getFullYear();
       const receiptPrefix = `REC-${year}-`;
@@ -124,15 +121,14 @@ export const visitService = {
         ? `${actors[0].firstName} ${actors[0].lastName}`
         : "System";
       const patientName = `${patients[0].firstName} ${patients[0].lastName}`;
-      const doctorName = `Dr. ${doctors[0].firstName} ${doctors[0].lastName}`;
       await connection.execute(
         "INSERT INTO audit_logs (id,user_id,action,entity,entity_id,details,new_data) VALUES (?,?,'PATIENT_VISIT_CREATED','PATIENT_VISIT',?,?,?)",
         [
           randomUUID(),
           actorId,
           String(result.insertId),
-          `${actorName} created Visit #${visitNumber} for ${patientName} (${patients[0].patientNumber}) with ${doctorName}.`,
-          JSON.stringify({ patientId: Number(patientId), visitNumber, doctorId: data.doctorId, visitFee, feeType: data.feeType, serviceIds: uniqueServiceIds }),
+          `${actorName} created Visit #${visitNumber} for ${patientName} (${patients[0].patientNumber}) in ${departments[0].name}.`,
+          JSON.stringify({ patientId: Number(patientId), visitNumber, departmentId: data.departmentId, visitFee, feeType: data.feeType, serviceIds: uniqueServiceIds }),
         ],
       );
       await connection.execute(

@@ -3,7 +3,7 @@ import { Building2, Edit3, Plus, Power, Search, X } from "lucide-react";
 import { departmentService } from "../services/department.service";
 import { useNotifications } from "../context/NotificationContext";
 
-const blank = { name: "", code: "", description: "" };
+const blank = { name: "", code: "", description: "", registrationFee: "" };
 export function DepartmentsPage() {
   const { confirm, notify } = useNotifications();
   const [data, setData] = useState({ departments: [], pagination: {} });
@@ -147,6 +147,7 @@ export function DepartmentsPage() {
               <p className="mt-3 h-10 text-sm leading-5 text-slate-500">
                 {department.description || "No description provided."}
               </p>
+              <p className="mt-3 text-sm font-bold text-slate-800">PKR {Number(department.registrationFee).toLocaleString()}</p>
               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                 <span className="text-sm font-semibold text-slate-700">
                   {department.serviceCount}{" "}
@@ -234,6 +235,10 @@ export function DepartmentsPage() {
                     setForm({ ...form, description: e.target.value })
                   }
                 />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700">
+                Registration fee (PKR)
+                <input required min="0" step="0.01" type="number" className="hms-input" value={form.registrationFee} onChange={(e) => setForm({ ...form, registrationFee: e.target.value })} />
               </label>
             </div>
             <div className="mt-6 flex justify-end gap-3">

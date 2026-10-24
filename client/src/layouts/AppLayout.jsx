@@ -12,6 +12,7 @@ import {
   Menu,
   Scissors,
   Search,
+  ShieldCheck,
   Settings,
   Stethoscope,
   Tag,
@@ -23,6 +24,7 @@ import {
 } from "lucide-react";
 import { NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { hasPermission } from "../utils/access";
 const linkClass = ({ isActive }) =>
   `mb-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition ${isActive ? "bg-teal-600 text-white shadow-sm" : "hover:bg-slate-900 hover:text-white"}`;
 export function AppLayout() {
@@ -35,6 +37,7 @@ export function AppLayout() {
   const lab = user?.roles?.includes("LAB_ATTENDANT");
   const surgery = user?.roles?.includes("SURGERY_ATTENDANT");
   const bloodBank = user?.roles?.includes("BLOOD_BANK_STAFF");
+  const doctor = user?.roles?.includes("DOCTOR");
   useEffect(() => setMobileOpen(false), [location.pathname]);
   useEffect(() => {
     const close = (e) => e.key === "Escape" && setMobileOpen(false);
@@ -45,7 +48,7 @@ export function AppLayout() {
     await logout();
     navigate("/login");
   };
-  const nav = admin
+  let nav = admin
     ? [
         ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
         [
@@ -83,12 +86,15 @@ export function AppLayout() {
           "ADMINISTRATION",
           [
             ["Users", "/admin/users", UserCog],
+            ["Roles & Permissions", "/roles", ShieldCheck],
             ["Audit Logs", "/audit-logs", ClipboardList],
             ["Hospital Information", "/settings/hospital", Building2],
             ["Settings", "/admin/settings/registration-fee", Settings],
           ],
         ],
       ]
+    : doctor
+      ? [["MAIN", [["Doctor Queue", "/doctor/queue", Stethoscope]]]]
     : lab
       ? [
           ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
@@ -135,6 +141,13 @@ export function AppLayout() {
                 ],
               ],
             ];
+  if (!admin) {
+    const accessItems=[];
+    if(hasPermission(user,'USER_VIEW')) accessItems.push(['Users','/access/users',UserCog]);
+    if(hasPermission(user,'ROLE_VIEW')) accessItems.push(['Roles & Permissions','/access/roles',ShieldCheck]);
+    if(hasPermission(user,'AUDIT_LOG_VIEW')) accessItems.push(['Audit Logs','/audit-logs',ClipboardList]);
+    if(accessItems.length) nav=[...nav,['ADMINISTRATION',accessItems]];
+  }
   const title =
     location.pathname.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ||
     "Dashboard";
