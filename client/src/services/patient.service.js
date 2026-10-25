@@ -11,5 +11,7 @@ export const patientService = {
   getVisit: (id) => api.get(`/visits/${id}`),
   create: (data) => api.post("/patients", data),
   update: (id, data) => api.put(`/patients/${id}`, data),
-  remove: (id) => api.delete(`/patients/${id}`),
+  deletionImpact: (id) => api.get(`/patients/${id}/deletion-impact`),
+  classify: (id, data) => api.patch(`/patients/${id}/classification`, data),
+  permanentDelete: (id, data) => api.delete(`/patients/${id}`, { data }),
 };

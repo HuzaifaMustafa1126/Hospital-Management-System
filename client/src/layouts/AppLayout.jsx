@@ -146,6 +146,7 @@ export function AppLayout() {
     if(hasPermission(user,'USER_VIEW')) accessItems.push(['Users','/access/users',UserCog]);
     if(hasPermission(user,'ROLE_VIEW')) accessItems.push(['Roles & Permissions','/access/roles',ShieldCheck]);
     if(hasPermission(user,'AUDIT_LOG_VIEW')) accessItems.push(['Audit Logs','/audit-logs',ClipboardList]);
+    if(hasPermission(user,'SERVICE_VIEW')) accessItems.push(['Service Management','/services',Tag]);
     if(accessItems.length) nav=[...nav,['ADMINISTRATION',accessItems]];
   }
   const title =

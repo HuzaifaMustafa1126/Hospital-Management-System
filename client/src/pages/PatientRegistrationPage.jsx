@@ -38,7 +38,7 @@ export function PatientRegistrationPage() {
   const [duplicates, setDuplicates] = useState({ cnic: null, phone: null });
 
   useEffect(() => {
-    departmentService.list({ status: "active", page: 1, limit: 100 })
+    departmentService.list({ status: "active", registrationOnly:true, page: 1, limit: 100 })
       .then((r) => setDepartments(r.data.data.departments));
   }, []);
 

@@ -3,7 +3,7 @@ import { AppError } from "../utils/app-error.js";
 import { randomUUID } from "node:crypto";
 import { recalculateVisitBill } from "./visit-billing.service.js";
 
-const select = `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.father_name AS fatherName, p.gender, p.age, p.cnic, p.phone, p.address, p.registration_locked AS registrationLocked, p.is_active AS isActive, p.created_at AS createdAt, p.updated_at AS updatedAt, d.id AS doctorId, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, d.specialization AS doctorSpecialization, u.id AS createdById, u.first_name AS createdByFirstName, u.last_name AS createdByLastName FROM patients p LEFT JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = p.created_by`;
+const select = `SELECT p.id, p.patient_number AS patientNumber, p.first_name AS firstName, p.last_name AS lastName, p.father_name AS fatherName, p.gender, p.age, p.cnic, p.phone, p.address, p.registration_locked AS registrationLocked, p.is_active AS isActive, p.record_classification AS recordClassification, p.created_at AS createdAt, p.updated_at AS updatedAt, d.id AS doctorId, d.first_name AS doctorFirstName, d.last_name AS doctorLastName, d.specialization AS doctorSpecialization, u.id AS createdById, u.first_name AS createdByFirstName, u.last_name AS createdByLastName FROM patients p LEFT JOIN doctors d ON d.id = p.doctor_id JOIN users u ON u.id = p.created_by`;
 const present = (row) =>
   row && {
     ...row,
@@ -128,7 +128,7 @@ export const patientService = {
           "Unable to reserve a patient number. Please try again.",
         );
       await connection.beginTransaction();
-      const [departments] = await connection.execute("SELECT id,name,registration_fee AS registrationFee FROM departments WHERE id=? AND is_active=TRUE AND deleted_at IS NULL FOR UPDATE", [data.departmentId]);
+      const [departments] = await connection.execute("SELECT id,name,registration_fee AS registrationFee FROM departments WHERE id=? AND is_active=TRUE AND accepts_registration=TRUE AND deleted_at IS NULL FOR UPDATE", [data.departmentId]);
       if (!departments.length) throw new AppError(400, "Selected department was not found or is inactive", [], "departmentId");
       const cnicDuplicate = await findDuplicate("cnic", cnic, connection);
       if (cnicDuplicate)
@@ -391,12 +391,64 @@ export const patientService = {
       connection.release();
     }
   },
-  async remove(id) {
-    await getById(id);
-    await database.execute(
-      "UPDATE patients SET is_active = FALSE WHERE id = ?",
-      [id],
-    );
-    return this.get(id);
+  async deletionImpact(id, connection=database) {
+    const patient=await getById(id,connection);
+    const tableCounts={visits:['patient_visits','patient_id'],consultations:['consultations','patient_id'],services:['patient_services','patient_id'],shortStayOrders:['short_stay_orders','patient_id'],bills:['visit_bills','patient_id'],registrationPayments:['registration_payments','patient_id'],payments:['bill_payments','patient_id'],registrationAudit:['patient_registration_audit','patient_id']};
+    const counts={};
+    for(const [key,[table,column]] of Object.entries(tableCounts)){try{const [rows]=await connection.execute(`SELECT COUNT(*) total FROM ${table} WHERE ${column}=?`,[id]);counts[key]=Number(rows[0].total);}catch(error){if(error.code==='ER_NO_SUCH_TABLE')counts[key]=0;else throw error;}}
+    return {patient:{id:patient.id,patientNumber:patient.patientNumber,firstName:patient.firstName,lastName:patient.lastName,cnic:patient.cnic,isActive:patient.isActive},counts,permanentDeleteEligible:true,retentionReasons:[],retentionExplanation:null};
+  },
+  async classify(id, { patientNumber, classification, reason }, actorId) {
+    const connection = await database.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [rows] = await connection.execute("SELECT patient_number AS patientNumber, record_classification AS recordClassification FROM patients WHERE id=? FOR UPDATE", [id]);
+      if (!rows.length) throw new AppError(404, "Patient not found.");
+      if (rows[0].patientNumber !== patientNumber) throw new AppError(400, "Patient number confirmation does not match.");
+      await connection.execute("UPDATE patients SET record_classification=?, classified_by=?, classification_reason=?, classified_at=NOW() WHERE id=?", [classification, actorId, reason, id]);
+      await connection.execute("INSERT INTO audit_logs(id,user_id,action,entity,entity_id,details,old_data,new_data) VALUES(?,?,'PATIENT_CLASSIFICATION_CHANGED','PATIENT',?,?,?,?)", [randomUUID(), actorId, patientNumber, `Patient ${patientNumber} classification changed to ${classification}.`, JSON.stringify({ recordClassification: rows[0].recordClassification }), JSON.stringify({ recordClassification: classification, reason })]);
+      await connection.commit();
+      return this.get(id);
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
+  },
+  async permanentDelete(id, { cnic }, actorId) {
+    const connection = await database.getConnection();
+    try {
+      await connection.beginTransaction();
+      const [rows] = await connection.execute("SELECT patient_number AS patientNumber, cnic, record_classification AS recordClassification FROM patients WHERE id=? FOR UPDATE", [id]);
+      if (!rows.length) throw new AppError(404, "Patient not found.");
+      if (rows[0].cnic !== cnic) throw new AppError(400, "Patient CNIC confirmation does not match.");
+      const patientNumber = rows[0].patientNumber;
+      const impact = await this.deletionImpact(id, connection);
+      const [consultations] = await connection.execute("SELECT id FROM consultations WHERE patient_id=? FOR UPDATE", [id]);
+      const consultationIds = consultations.map((row) => row.id);
+      if (consultationIds.length) {
+        const placeholders = consultationIds.map(() => "?").join(",");
+        await connection.execute(`DELETE FROM consultation_amendments WHERE consultation_id IN (${placeholders})`, consultationIds);
+        await connection.execute(`DELETE FROM consultation_vitals WHERE consultation_id IN (${placeholders})`, consultationIds);
+      }
+      await connection.execute("DELETE FROM bill_payments WHERE patient_id=?", [id]);
+      await connection.execute("DELETE FROM short_stay_orders WHERE patient_id=?", [id]);
+      await connection.execute("DELETE FROM patient_services WHERE patient_id=?", [id]);
+      await connection.execute("DELETE FROM registration_payments WHERE patient_id=?", [id]);
+      await connection.execute("DELETE FROM visit_bills WHERE patient_id=?", [id]);
+      await connection.execute("DELETE FROM consultations WHERE patient_id=?", [id]);
+      await connection.execute("DELETE FROM patient_visits WHERE patient_id=?", [id]);
+      await connection.execute("DELETE FROM patient_registration_audit WHERE patient_id=?", [id]);
+      await connection.execute("DELETE FROM patients WHERE id=?", [id]);
+      await connection.execute("INSERT INTO audit_logs(id,user_id,action,entity,entity_id,details,new_data) VALUES(?,?,'PATIENT_PERMANENTLY_DELETED','PATIENT',?,?,?)", [randomUUID(), actorId, patientNumber, `Patient ${patientNumber} and patient-owned records were permanently deleted.`, JSON.stringify({ patientNumber, categories: impact.counts, result: "SUCCESS" })]);
+      await connection.commit();
+      return { patientNumber, counts: impact.counts };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   },
 };

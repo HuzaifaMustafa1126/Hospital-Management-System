@@ -12,3 +12,5 @@ const positiveInteger = (value) => typeof value === 'number' ? value : (/^\d+$/.
 const safePage = (value) => { const number = positiveInteger(value); return Number.isInteger(number) && number > 0 ? Math.min(number, 1000000) : 1; };
 const safeLimit = (value) => { const number = positiveInteger(value); return Number.isInteger(number) && number > 0 ? Math.min(number, 100) : 20; };
 export const patientListSchema = z.object({ page: z.preprocess(safePage, z.number().int()), limit: z.preprocess(safeLimit, z.number().int()), search: z.string().trim().max(191).optional() });
+export const patientPermanentDeleteSchema=z.object({cnic:z.string().trim().min(1).max(20)});
+export const patientClassificationSchema=z.object({patientNumber:z.string().trim().min(1).max(30),classification:z.enum(['REAL','TEST']),reason:z.string().trim().min(10).max(1000)});

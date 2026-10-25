@@ -25,7 +25,7 @@ export function NewVisitPage() {
   useEffect(() => {
     Promise.all([
       patientService.get(id),
-      departmentService.list({ status: "active", page: 1, limit: 100 }),
+      departmentService.list({ status: "active", registrationOnly:true, page: 1, limit: 100 }),
       serviceService.list({ status: "active", limit: 100 }),
     ])
       .then(([patientResponse, departmentResponse, serviceResponse]) => {

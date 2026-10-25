@@ -8,9 +8,12 @@ const pagination = z.object({
   limit: z.preprocess((value) => Math.max(1, Math.min(integer(value, 20), 100)), z.number().int().positive()),
   search: z.string().trim().max(150).optional(),
   status: z.enum(['active', 'inactive', 'all']).optional().default('all'),
+  registrationOnly: z.preprocess((value) => value === true || value === 'true', z.boolean()).optional().default(false),
+  sort: z.enum(['name', 'fee']).optional().default('name'),
+  direction: z.enum(['asc', 'desc']).optional().default('asc'),
 });
 
-export const departmentCreateSchema = z.object({ name: text(150), code: text(30).transform((value) => value.toUpperCase()), description: optionalText(500), registrationFee: z.coerce.number().finite().min(0).max(99999999.99) });
-export const departmentUpdateSchema = departmentCreateSchema.partial().refine((value) => Object.keys(value).length > 0, 'At least one field is required');
+export const departmentCreateSchema = z.object({ name: text(150), code: text(30).transform((value) => value.toUpperCase()), description: optionalText(500), registrationFee: z.coerce.number().finite().min(0).max(99999999.99), isActive:z.boolean().default(true) });
+export const departmentUpdateSchema = departmentCreateSchema.omit({code:true}).partial().refine((value) => Object.keys(value).length > 0, 'At least one field is required');
 export const departmentStatusSchema = z.object({ isActive: z.boolean() });
 export const departmentListSchema = pagination;

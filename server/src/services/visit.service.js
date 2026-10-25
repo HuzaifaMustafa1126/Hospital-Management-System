@@ -55,7 +55,7 @@ export const visitService = {
       );
       if (!patients.length) throw new AppError(404, "Patient not found.");
       const [departments] = await connection.execute(
-        "SELECT id,name,registration_fee AS registrationFee FROM departments WHERE id=? AND is_active=TRUE AND deleted_at IS NULL FOR UPDATE",
+        "SELECT id,name,registration_fee AS registrationFee FROM departments WHERE id=? AND is_active=TRUE AND accepts_registration=TRUE AND deleted_at IS NULL FOR UPDATE",
         [data.departmentId],
       );
       if (!departments.length) throw new AppError(400, "Selected department was not found or is inactive.");

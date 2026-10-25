@@ -1,6 +1,7 @@
 import { doctorWorkflowService } from "../services/doctor-workflow.service.js";
 import { shortStayOrderSchema } from "../validators/visit.validator.js";
 export const doctorWorkflowController = {
+  async availableServices(req,res){res.json({success:true,data:await doctorWorkflowService.availableServices(req.params.id,req.user.id)});},
   async details(req,res) { res.json({success:true,data:await doctorWorkflowService.details(req.params.id,req.user.id)}); },
   async queue(req,res) { res.json({ success:true, data:await doctorWorkflowService.queue(req.user.id,req.query.search || '') }); },
   async claim(req,res) { res.json({ success:true, message:'Visit claimed.', data:await doctorWorkflowService.claim(req.params.id,req.user.id) }); },

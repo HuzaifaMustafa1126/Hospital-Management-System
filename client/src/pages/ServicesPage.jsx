@@ -20,9 +20,10 @@ import { useNotifications } from "../context/NotificationContext";
 const blank = {
   name: "",
   code: "",
-  departmentId: "",
+  departmentIds: [],
   description: "",
   price: "",
+  isActive: true,
 };
 const money = (value) =>
   `PKR ${new Intl.NumberFormat().format(Number(value) || 0)}`;
@@ -93,7 +94,7 @@ export function ServicesPage() {
     try {
       const payload = {
         ...form,
-        departmentId: Number(form.departmentId),
+        departmentIds: form.departmentIds.map(Number),
         price: Number(form.price),
       };
       if (form.id) await serviceService.update(form.id, payload);
@@ -105,6 +106,14 @@ export function ServicesPage() {
     } catch (e) {
       setError(e.response?.data?.message || "Unable to save service.");
     }
+  };
+  const remove = async (service) => {
+    try {
+      const impact = (await serviceService.deletionImpact(service.id)).data.data;
+      const approved = await confirm({ title: "Delete Service?", message: impact.canDelete ? `${service.name} has no historical usage and can be permanently deleted.` : `${service.name} has ${impact.dependencies.patientServices + impact.dependencies.shortStayOrders} historical record(s). It cannot be deleted; deactivate it instead.`, confirmLabel: impact.canDelete ? "Delete Permanently" : "Close", tone: "danger" });
+      if (!approved || !impact.canDelete) return;
+      await serviceService.remove(service.id); notify({ type: "success", title: "Service Deleted", message: `${service.name} was permanently deleted.` }); await load();
+    } catch (e) { setError(e.response?.data?.message || "Unable to delete service."); }
   };
   const changeStatus = async (service) => {
     const action = service.isActive ? "Deactivate" : "Activate";
@@ -211,7 +220,7 @@ export function ServicesPage() {
               <tr>
                 <th className="px-5 py-3.5">Service</th>
                 <th className="px-4 py-3.5">Code</th>
-                <th className="px-4 py-3.5">Department</th>
+                <th className="px-4 py-3.5">Available Departments</th>
                 <th className="px-4 py-3.5">Price</th>
                 <th className="px-4 py-3.5">Status</th>
                 <th className="px-4 py-3.5">Created</th>
@@ -235,15 +244,13 @@ export function ServicesPage() {
                     key={service.id}
                   >
                     <td className="px-5 py-4">
-                      <div className="flex items-center gap-3"><span className="rounded-lg bg-teal-50 p-2 text-teal-700"><DepartmentIcon name={service.department.name}/></span><span><b className="block text-slate-800">{service.name}</b><small className="line-clamp-1 text-slate-500">{service.description || "No description"}</small></span></div>
+                      <div className="flex items-center gap-3"><span className="rounded-lg bg-teal-50 p-2 text-teal-700"><DepartmentIcon name={service.departments[0]?.name || service.name}/></span><span><b className="block text-slate-800">{service.name}</b><small className="line-clamp-1 text-slate-500">{service.description || "No description"}</small></span></div>
                     </td>
                     <td className="px-4 py-4 font-semibold text-teal-700">
                       {service.code}
                     </td>
                     <td className="px-4 py-4">
-                      <span className="rounded-lg bg-sky-50 px-2.5 py-1 text-xs font-semibold text-sky-700">
-                        {service.department.name}
-                      </span>
+                      <span className="text-xs font-semibold text-sky-700">{service.departments.map((department)=>department.name).join(", ") || "Not assigned"}</span>
                     </td>
                     <td className="px-4 py-4 font-semibold text-slate-800">
                       {money(service.price)}
@@ -264,7 +271,7 @@ export function ServicesPage() {
                         onClick={() =>
                           setForm({
                             ...service,
-                            departmentId: String(service.department.id),
+                            departmentIds: service.departments.map((department)=>String(department.id)),
                             price: String(service.price),
                           })
                         }
@@ -279,6 +286,7 @@ export function ServicesPage() {
                         <Power size={15} className="mr-1 inline" />
                         {service.isActive ? "Deactivate" : "Activate"}
                       </button>
+                      <button className="ml-4 font-semibold text-rose-600" onClick={() => void remove(service)}>Delete</button>
                     </td>
                   </tr>
                 ))
@@ -326,6 +334,7 @@ export function ServicesPage() {
                 Service name
                 <input
                   required
+                  disabled={Boolean(form.id)}
                   className="hms-input"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -342,24 +351,7 @@ export function ServicesPage() {
                   }
                 />
               </label>
-              <label className="text-sm font-semibold text-slate-700">
-                Department
-                <select
-                  required
-                  className="hms-input"
-                  value={form.departmentId}
-                  onChange={(e) =>
-                    setForm({ ...form, departmentId: e.target.value })
-                  }
-                >
-                  <option value="">Select department</option>
-                  {departments.map((department) => (
-                    <option key={department.id} value={department.id}>
-                      {department.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              <fieldset className="rounded-xl border border-slate-200 p-3 text-sm sm:col-span-2"><legend className="px-1 font-semibold text-slate-700">Available Departments</legend><label className="flex items-center gap-2 border-b pb-2"><input type="checkbox" checked={departments.length>0&&form.departmentIds.length===departments.length} onChange={(e)=>setForm({...form,departmentIds:e.target.checked?departments.map((department)=>String(department.id)):[]})}/> All Active Departments</label><div className="mt-3 grid gap-2 sm:grid-cols-2">{departments.map((department)=><label className="flex items-center gap-2" key={department.id}><input type="checkbox" checked={form.departmentIds.includes(String(department.id))} onChange={(e)=>setForm({...form,departmentIds:e.target.checked?[...form.departmentIds,String(department.id)]:form.departmentIds.filter((id)=>id!==String(department.id))})}/>{department.name}</label>)}</div></fieldset>
               <label className="text-sm font-semibold text-slate-700">
                 Price (PKR)
                 <input
@@ -382,6 +374,7 @@ export function ServicesPage() {
                   }
                 />
               </label>
+              <label className="text-sm font-semibold text-slate-700">Status<select className="hms-input" value={form.isActive ? "active" : "inactive"} onChange={(e)=>setForm({...form,isActive:e.target.value==="active"})}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button

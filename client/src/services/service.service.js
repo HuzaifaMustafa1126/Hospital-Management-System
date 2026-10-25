@@ -6,4 +6,6 @@ export const serviceService = {
   create: (data) => api.post("/services", data),
   update: (id, data) => api.patch(`/services/${id}`, data),
   status: (id, isActive) => api.patch(`/services/${id}/status`, { isActive }),
+  deletionImpact: (id) => api.get(`/services/${id}/deletion-impact`),
+  remove: (id) => api.delete(`/services/${id}`),
 };

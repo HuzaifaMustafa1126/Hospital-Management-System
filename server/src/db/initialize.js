@@ -63,6 +63,19 @@ const permissions = [
   "PERMISSION_ASSIGN",
   "USER_DEACTIVATE",
   "USER_DEPARTMENT_ASSIGN",
+  "DEPARTMENT_VIEW",
+  "DEPARTMENT_CREATE",
+  "DEPARTMENT_UPDATE",
+  "DEPARTMENT_DELETE",
+  "DEPARTMENT_CHANGE_STATUS",
+  "DEPARTMENT_MANAGE_FEES",
+  "SERVICE_VIEW",
+  "SERVICE_CREATE",
+  "SERVICE_UPDATE",
+  "SERVICE_DELETE",
+  "SERVICE_CHANGE_STATUS",
+  "SERVICE_MANAGE_PRICING",
+  "SERVICE_ASSIGN_DEPARTMENTS",
 ];
 const receptionPermissions = [
   "PATIENT_CREATE",
@@ -137,6 +150,8 @@ async function seedAccessControl(connection) {
       "INSERT IGNORE INTO role_permissions (role_id, permission_id) VALUES (?, ?)",
       [roleIds.RECEPTION, permissionIds[name]],
     );
+  for (const role of ["RECEPTION","DOCTOR","LAB_ATTENDANT","SURGERY_ATTENDANT","BLOOD_BANK_STAFF","BILLING_STAFF"])
+    await connection.execute("INSERT IGNORE INTO role_permissions(role_id,permission_id) VALUES(?,?)",[roleIds[role],permissionIds.DEPARTMENT_VIEW]);
   for (const role of [
     "LAB_ATTENDANT",
     "SURGERY_ATTENDANT",
@@ -214,12 +229,6 @@ async function seedAccessControl(connection) {
       [firstName, lastName, specialization, licenseNumber],
     );
   const departments = [
-    ["Emergency", "EMERGENCY", "Emergency patient care"],
-    ["Gyne", "GYNE", "Gynecology outpatient care"],
-    ["Eye", "EYE", "Ophthalmology outpatient care"],
-    ["Dialysis", "DIALYSIS", "Dialysis services"],
-    ["Peds OPD", "PEDS-OPD", "Pediatric outpatient care"],
-    ["General OPD", "GENERAL-OPD", "General outpatient care"],
     ["Laboratory", "LAB", "Laboratory diagnostic services"],
     ["Radiology", "RAD", "Diagnostic imaging services"],
     ["Surgery", "SUR", "Surgical services"],
@@ -232,6 +241,27 @@ async function seedAccessControl(connection) {
       "INSERT INTO departments (name, code, description) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE id = id",
       [name, code, description],
     );
+  for (const [legacyCode, code, name, fee] of [
+    ["GYNE", "GYNEA", "Gynea", 500],
+    ["PEDS-OPD", "PEADS_OPD", "Peads-OPD", 600],
+    ["GENERAL-OPD", "GENERAL_OPD", "General-OPD", 500],
+  ]) {
+    const [target] = await connection.execute("SELECT id FROM departments WHERE code=?", [code]);
+    if (!target.length)
+      await connection.execute("UPDATE departments SET code=?,name=?,registration_fee=?,accepts_registration=TRUE WHERE code=?", [code,name,fee,legacyCode]);
+  }
+  const registrationDepartments = [
+    ["Emergency Category I", "EMERGENCY_CAT_1", "Emergency category I patient care", 500],
+    ["Emergency Category II", "EMERGENCY_CAT_2", "Emergency category II patient care", 1000],
+    ["Gynea", "GYNEA", "Gynecology outpatient care", 500],
+    ["Eye", "EYE", "Ophthalmology outpatient care", 600],
+    ["Dialysis", "DIALYSIS", "Dialysis services", 5000],
+    ["Peads-OPD", "PEADS_OPD", "Pediatric outpatient care", 600],
+    ["General-OPD", "GENERAL_OPD", "General outpatient care", 500],
+  ];
+  for (const [name, code, description, fee] of registrationDepartments)
+    await connection.execute("INSERT INTO departments(name,code,description,registration_fee,is_active,accepts_registration) VALUES(?,?,?,?,TRUE,TRUE) ON DUPLICATE KEY UPDATE name=VALUES(name),description=VALUES(description),registration_fee=VALUES(registration_fee),accepts_registration=TRUE", [name,code,description,fee]);
+  await connection.execute("UPDATE departments SET is_active=FALSE,accepts_registration=FALSE WHERE code='EMERGENCY'");
   const [departmentRows] = await connection.execute(
     "SELECT id, code FROM departments",
   );
@@ -298,6 +328,19 @@ export async function initializeDatabase({ log = false } = {}) {
       );
     const [patientAgeColumn] = await connection.query("SHOW COLUMNS FROM patients LIKE 'age'");
     if (!patientAgeColumn.length) await connection.query("ALTER TABLE patients ADD COLUMN age TINYINT UNSIGNED NULL AFTER gender");
+    for (const [column, definition] of [
+      ["record_classification", "ENUM('REAL','TEST') NOT NULL DEFAULT 'REAL' AFTER is_active"],
+      ["classified_by", "VARCHAR(191) NULL AFTER record_classification"],
+      ["classification_reason", "VARCHAR(1000) NULL AFTER classified_by"],
+      ["classified_at", "DATETIME NULL AFTER classification_reason"],
+    ]) {
+      const [columns] = await connection.query(`SHOW COLUMNS FROM patients LIKE '${column}'`);
+      if (!columns.length) await connection.query(`ALTER TABLE patients ADD COLUMN ${column} ${definition}`);
+    }
+    const [classificationIndex] = await connection.query("SHOW INDEX FROM patients WHERE Key_name='idx_patients_record_classification'");
+    if (!classificationIndex.length) await connection.query("ALTER TABLE patients ADD KEY idx_patients_record_classification (record_classification)");
+    const [classificationForeignKey] = await connection.execute("SELECT 1 FROM information_schema.REFERENTIAL_CONSTRAINTS WHERE CONSTRAINT_SCHEMA=DATABASE() AND CONSTRAINT_NAME='patients_classified_by_fkey'");
+    if (!classificationForeignKey.length) await connection.query("ALTER TABLE patients ADD CONSTRAINT patients_classified_by_fkey FOREIGN KEY (classified_by) REFERENCES users(id) ON DELETE SET NULL");
     const [patientCnicUnique] = await connection.query(
       "SHOW INDEX FROM patients WHERE Key_name='uq_patients_cnic'",
     );
@@ -355,6 +398,7 @@ export async function initializeDatabase({ log = false } = {}) {
     for (const [column, definition] of [
       ["registration_fee", "DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER description"],
       ["deleted_at", "TIMESTAMP NULL AFTER is_active"],
+      ["accepts_registration", "BOOLEAN NOT NULL DEFAULT FALSE AFTER registration_fee"],
     ]) {
       const [columns] = await connection.query(`SHOW COLUMNS FROM departments LIKE '${column}'`);
       if (!columns.length) await connection.query(`ALTER TABLE departments ADD COLUMN ${column} ${definition}`);
@@ -374,6 +418,27 @@ export async function initializeDatabase({ log = false } = {}) {
     const [doctorAvailability] = await connection.query("SHOW COLUMNS FROM doctors LIKE 'availability'");
     if (!doctorAvailability.length) await connection.query("ALTER TABLE doctors ADD COLUMN availability ENUM('AVAILABLE','BUSY','OFF_DUTY','INACTIVE') NOT NULL DEFAULT 'AVAILABLE' AFTER specialization");
     await connection.query(`CREATE TABLE IF NOT EXISTS doctor_departments (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, doctor_id BIGINT UNSIGNED NOT NULL, department_id BIGINT UNSIGNED NOT NULL, is_active BOOLEAN NOT NULL DEFAULT TRUE, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, PRIMARY KEY(id), UNIQUE KEY uq_doctor_department(doctor_id,department_id), KEY idx_doctor_departments_department(department_id,is_active), CONSTRAINT doctor_departments_doctor_fkey FOREIGN KEY(doctor_id) REFERENCES doctors(id), CONSTRAINT doctor_departments_department_fkey FOREIGN KEY(department_id) REFERENCES departments(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+    for (const [column, definition] of [
+      ["workflow_key", "VARCHAR(50) NOT NULL DEFAULT 'GENERIC' AFTER code"],
+      ["doctor_selectable", "BOOLEAN NOT NULL DEFAULT FALSE AFTER workflow_key"],
+    ]) {
+      const [columns] = await connection.query(`SHOW COLUMNS FROM services LIKE '${column}'`);
+      if (!columns.length) await connection.query(`ALTER TABLE services ADD COLUMN ${column} ${definition}`);
+    }
+    await connection.query(`CREATE TABLE IF NOT EXISTS department_services (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,department_id BIGINT UNSIGNED NOT NULL,service_id BIGINT UNSIGNED NOT NULL,created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,PRIMARY KEY(id),UNIQUE KEY uq_department_service(department_id,service_id),KEY idx_department_services_service(service_id,department_id),CONSTRAINT department_services_department_fkey FOREIGN KEY(department_id) REFERENCES departments(id),CONSTRAINT department_services_service_fkey FOREIGN KEY(service_id) REFERENCES services(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
+    const [serviceDepartmentColumn] = await connection.query("SHOW COLUMNS FROM services LIKE 'department_id'");
+    if (serviceDepartmentColumn[0]?.Null === "NO") await connection.query("ALTER TABLE services MODIFY department_id BIGINT UNSIGNED NULL");
+    await connection.query("INSERT IGNORE INTO department_services(department_id,service_id) SELECT department_id,id FROM services");
+    const [shortStayRows] = await connection.query("SELECT id FROM services WHERE code='SHORT_STAY'");
+    let shortStayId = shortStayRows[0]?.id;
+    if (!shortStayId) {
+      const [departments] = await connection.query("SELECT id FROM departments WHERE is_active=TRUE AND deleted_at IS NULL ORDER BY id LIMIT 1");
+      if (departments.length) {
+        const [result] = await connection.execute("INSERT INTO services(department_id,name,code,workflow_key,doctor_selectable,description,price,is_active) VALUES(?,'Short Stay','SHORT_STAY','SHORT_STAY',TRUE,'Short-stay clinical orders with age-based pricing configured separately.',0,TRUE)", [departments[0].id]);
+        shortStayId = result.insertId;
+      }
+    } else await connection.execute("UPDATE services SET workflow_key='SHORT_STAY',doctor_selectable=TRUE,is_active=TRUE WHERE id=?", [shortStayId]);
+    if (shortStayId) await connection.execute("INSERT IGNORE INTO department_services(department_id,service_id) SELECT id,? FROM departments WHERE is_active=TRUE AND deleted_at IS NULL", [shortStayId]);
     await connection.query(`CREATE TABLE IF NOT EXISTS short_stay_orders (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, patient_id BIGINT UNSIGNED NOT NULL, visit_id BIGINT UNSIGNED NOT NULL, doctor_id BIGINT UNSIGNED NOT NULL, medicine_name VARCHAR(255) NOT NULL, dose VARCHAR(100) NOT NULL, route ENUM('IV','IM') NOT NULL, quantity VARCHAR(100) NOT NULL, status ENUM('ORDERED','IN_PROGRESS','COMPLETED','CANCELLED') NOT NULL DEFAULT 'ORDERED', created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY(id), KEY idx_short_stay_visit_created(visit_id,created_at), CONSTRAINT short_stay_patient_fkey FOREIGN KEY(patient_id) REFERENCES patients(id), CONSTRAINT short_stay_visit_fkey FOREIGN KEY(visit_id) REFERENCES patient_visits(id), CONSTRAINT short_stay_doctor_fkey FOREIGN KEY(doctor_id) REFERENCES doctors(id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`);
     await connection.query(
       `CREATE TABLE IF NOT EXISTS visit_bills (id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT, visit_id BIGINT UNSIGNED NOT NULL, patient_id BIGINT UNSIGNED NOT NULL, visit_fee DECIMAL(10,2) NOT NULL, services_total DECIMAL(12,2) NOT NULL, total_amount DECIMAL(12,2) NOT NULL, created_by VARCHAR(191) NULL, created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, PRIMARY KEY (id), UNIQUE KEY uq_visit_bills_visit (visit_id), KEY idx_visit_bills_patient (patient_id), CONSTRAINT visit_bills_visit_fkey FOREIGN KEY (visit_id) REFERENCES patient_visits(id), CONSTRAINT visit_bills_patient_fkey FOREIGN KEY (patient_id) REFERENCES patients(id), CONSTRAINT visit_bills_created_by_fkey FOREIGN KEY (created_by) REFERENCES users(id) ON DELETE SET NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,

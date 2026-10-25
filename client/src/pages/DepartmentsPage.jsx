@@ -1,17 +1,20 @@
 import { useCallback, useEffect, useState } from "react";
-import { Building2, Edit3, Plus, Power, Search, X } from "lucide-react";
+import { Building2, Edit3, Plus, Power, Search, Trash2, X } from "lucide-react";
 import { departmentService } from "../services/department.service";
 import { useNotifications } from "../context/NotificationContext";
+import { BaseModal } from "../components/BaseModal";
 
-const blank = { name: "", code: "", description: "", registrationFee: "" };
+const blank = { name: "", code: "", description: "", registrationFee: "", isActive:true };
 export function DepartmentsPage() {
   const { confirm, notify } = useNotifications();
   const [data, setData] = useState({ departments: [], pagination: {} });
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [sort,setSort]=useState("name");
   const [form, setForm] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [deleteState,setDeleteState]=useState(null);
   const load = useCallback(async () => {
     try {
       setLoading(true);
@@ -20,6 +23,7 @@ export function DepartmentsPage() {
           await departmentService.list({
             search: search || undefined,
             status,
+            sort,
             page: 1,
             limit: 100,
           })
@@ -30,7 +34,7 @@ export function DepartmentsPage() {
     } finally {
       setLoading(false);
     }
-  }, [search, status]);
+  }, [search, status, sort]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -50,7 +54,7 @@ export function DepartmentsPage() {
   const changeStatus = async (department) => {
     const approved = await confirm({
       title: `${department.isActive ? "Deactivate" : "Activate"} Department?`,
-      message: `${department.name} will be marked ${department.isActive ? "inactive" : "active"}.`,
+      message: department.isActive ? `${department.name} will no longer accept new registrations or visits. ${department.activeVisitCount ? `${department.activeVisitCount} active visit(s) will remain available for completion.` : "Existing history will remain unchanged."}` : `${department.name} will become available for new registrations and visits.`,
       confirmLabel: department.isActive ? "Deactivate" : "Activate",
       tone: department.isActive ? "danger" : "warning",
     });
@@ -65,6 +69,12 @@ export function DepartmentsPage() {
       );
     }
   };
+  const remove = async (department) => {
+    setDeleteState({department,loading:true});
+    try{const impact=(await departmentService.deletionImpact(department.id)).data.data;setDeleteState({department,impact,loading:false});}
+    catch(e){setError(e.response?.data?.message||"Unable to delete department.");}
+  };
+  const resolveDelete=async(action)=>{try{if(action==="assignments")await departmentService.removeAssignments(deleteState.department.id);if(action==="services")await departmentService.removeServiceMappings(deleteState.department.id);if(action==="deactivate")await departmentService.status(deleteState.department.id,false);if(action==="delete")await departmentService.remove(deleteState.department.id);if(action==="delete"||action==="deactivate"){notify({type:"success",title:action==="delete"?"Department Deleted":"Department Deactivated",message:`${deleteState.department.name} was ${action==="delete"?"permanently deleted":"deactivated"}.`});setDeleteState(null);await load();return;}const impact=(await departmentService.deletionImpact(deleteState.department.id)).data.data;setDeleteState({...deleteState,impact});}catch(e){setError(e.response?.data?.message||"Unable to resolve department dependencies.");}};
   return (
     <div className="space-y-5">
       <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
@@ -73,10 +83,10 @@ export function DepartmentsPage() {
             Clinical configuration
           </p>
           <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
-            Departments
+            Department Management
           </h2>
           <p className="mt-1.5 text-sm text-slate-500">
-            Manage hospital departments and service categories.
+            Manage hospital departments, registration fees, and availability.
           </p>
         </div>
         <button className="hms-button-primary" onClick={() => setForm(blank)}>
@@ -106,6 +116,7 @@ export function DepartmentsPage() {
           <option value="active">Active</option>
           <option value="inactive">Inactive</option>
         </select>
+        <select className="hms-input mt-0 sm:w-48" value={sort} onChange={(e)=>setSort(e.target.value)}><option value="name">Sort by name</option><option value="fee">Sort by fee</option></select>
         <button className="hms-button-secondary" onClick={load}>
           Search
         </button>
@@ -150,8 +161,7 @@ export function DepartmentsPage() {
               <p className="mt-3 text-sm font-bold text-slate-800">PKR {Number(department.registrationFee).toLocaleString()}</p>
               <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
                 <span className="text-sm font-semibold text-slate-700">
-                  {department.serviceCount}{" "}
-                  {department.serviceCount === 1 ? "service" : "services"}
+                  {department.assignedDoctorCount} {department.assignedDoctorCount === 1 ? "doctor" : "doctors"}
                 </span>
                 <div className="flex gap-3">
                   <button
@@ -167,6 +177,7 @@ export function DepartmentsPage() {
                     <Power size={15} className="mr-1 inline" />
                     {department.isActive ? "Deactivate" : "Activate"}
                   </button>
+                  <button className="text-sm font-semibold text-rose-700" onClick={() => remove(department)} title="Delete department"><Trash2 size={15}/></button>
                 </div>
               </div>
             </article>
@@ -210,6 +221,7 @@ export function DepartmentsPage() {
                 Department name
                 <input
                   required
+                  disabled={Boolean(form.id)}
                   className="hms-input"
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -240,6 +252,7 @@ export function DepartmentsPage() {
                 Registration fee (PKR)
                 <input required min="0" step="0.01" type="number" className="hms-input" value={form.registrationFee} onChange={(e) => setForm({ ...form, registrationFee: e.target.value })} />
               </label>
+              {!form.id && <label className="block text-sm font-semibold text-slate-700">Status<select className="hms-input" value={form.isActive?'active':'inactive'} onChange={(e)=>setForm({...form,isActive:e.target.value==='active'})}><option value="active">Active</option><option value="inactive">Inactive</option></select></label>}
             </div>
             <div className="mt-6 flex justify-end gap-3">
               <button
@@ -256,6 +269,7 @@ export function DepartmentsPage() {
           </form>
         </div>
       )}
+      {deleteState&&<BaseModal labelledBy="delete-department-title" onClose={()=>setDeleteState(null)} panelClassName="max-w-xl"><div className="p-6"><div className="flex justify-between"><div><p className="text-xs font-bold uppercase tracking-wider text-rose-600">Department deletion</p><h3 id="delete-department-title" className="mt-1 text-xl font-bold">Delete Department?</h3><p className="mt-1 text-sm text-slate-500">Department: {deleteState.department.name}</p></div><button onClick={()=>setDeleteState(null)}><X/></button></div>{deleteState.loading?<p className="py-8 text-center text-slate-500">Inspecting dependencies…</p>:<><p className={`mt-5 rounded-xl p-4 text-sm ${deleteState.impact.canDelete?"bg-emerald-50 text-emerald-800":"bg-amber-50 text-amber-800"}`}>{deleteState.impact.canDelete?"This department has no dependent records and can be permanently deleted.":deleteState.impact.hasHistoricalRecords?"This department cannot be deleted because it contains historical records.":"Resolve the administrative associations below before permanent deletion."}</p><div className="mt-4 grid grid-cols-2 gap-2 text-sm">{Object.entries(deleteState.impact.dependencies).map(([key,value])=><div className="rounded-lg border p-3" key={key}><b>{value}</b><span className="ml-2 text-slate-500">{key.replace(/([A-Z])/g," $1")}</span></div>)}</div><div className="mt-5 flex flex-wrap justify-end gap-2"><button className="hms-button-secondary" onClick={()=>setDeleteState(null)}>Cancel</button>{deleteState.impact.resolutions.canRemoveAssignments&&<button className="hms-button-secondary" onClick={()=>void resolveDelete("assignments")}>Remove Assignments</button>}{deleteState.impact.resolutions.canRemoveServiceMappings&&<button className="hms-button-secondary" onClick={()=>void resolveDelete("services")}>Remove Service Mappings</button>}{deleteState.impact.hasHistoricalRecords&&deleteState.department.isActive&&<button className="hms-button-primary" onClick={()=>void resolveDelete("deactivate")}>Deactivate Department</button>}{deleteState.impact.canDelete&&<button className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white" onClick={()=>void resolveDelete("delete")}>Delete Permanently</button>}</div></>}</div></BaseModal>}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { patientController } from "../controllers/patient.controller.js";
 import {
   authenticate,
   requirePermission,
+  requireRole,
 } from "../middleware/auth.middleware.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { AppError } from "../utils/app-error.js";
@@ -12,6 +13,11 @@ const onlySuperAdminCanUpdate = (req, _res, next) =>
   req.user.permissions.includes("PATIENT_UPDATE")
     ? next()
     : next(new AppError(403, "Only Super Admin can edit patient registration"));
+export const canDeletePatient = (req, _res, next) =>
+  req.user?.roles.includes("SUPER_ADMIN") ||
+  req.user?.permissions.includes("PATIENT_DELETE")
+    ? next()
+    : next(new AppError(403, "You do not have permission to delete patients"));
 export const patientRouter = Router();
 patientRouter.use(authenticate);
 patientRouter.use("/", patientVisitRouter);
@@ -24,6 +30,11 @@ patientRouter.get(
   "/search",
   requirePermission("PATIENT_SEARCH"),
   asyncHandler(patientController.search),
+);
+patientRouter.patch(
+  "/:id/classification",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(patientController.classify),
 );
 patientRouter.get(
   "/check-cnic",
@@ -41,6 +52,11 @@ patientRouter.get(
   asyncHandler(patientController.list),
 );
 patientRouter.get(
+  "/:id/deletion-impact",
+  canDeletePatient,
+  asyncHandler(patientController.deletionImpact),
+);
+patientRouter.get(
   "/:id",
   requirePermission("PATIENT_VIEW"),
   asyncHandler(patientController.get),
@@ -52,6 +68,6 @@ patientRouter.put(
 );
 patientRouter.delete(
   "/:id",
-  requirePermission("PATIENT_DELETE"),
-  asyncHandler(patientController.remove),
+  canDeletePatient,
+  asyncHandler(patientController.permanentDelete),
 );
