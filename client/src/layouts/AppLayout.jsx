@@ -63,7 +63,7 @@ export function AppLayout() {
           [
             ["Doctors", "/admin/doctors", Stethoscope],
             ["Departments", "/departments", Building2],
-            ["Services", "/services", Tag],
+            ["Service Management", "/services", Tag],
             ["Surgery", "/surgery", Scissors],
             ["Surgery Patients", "/surgery/patients", Search],
             ["Blood Bank", "/blood-bank", Droplets],

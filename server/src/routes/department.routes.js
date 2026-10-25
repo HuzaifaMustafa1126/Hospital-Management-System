@@ -6,6 +6,7 @@ export const departmentRouter = Router();
 departmentRouter.use(authenticate);
 departmentRouter.get('/', requirePermission('DEPARTMENT_VIEW'), asyncHandler(departmentController.list));
 departmentRouter.get('/:id/deletion-impact', requirePermission('DEPARTMENT_DELETE'), asyncHandler(departmentController.deletionImpact));
+departmentRouter.get('/:id/services', requirePermission('DEPARTMENT_VIEW','SERVICE_VIEW'), asyncHandler(departmentController.services));
 departmentRouter.delete('/:id/assignments', requirePermission('DEPARTMENT_DELETE'), asyncHandler(departmentController.removeAssignments));
 departmentRouter.delete('/:id/service-mappings', requirePermission('DEPARTMENT_DELETE','SERVICE_ASSIGN_DEPARTMENTS'), asyncHandler(departmentController.removeServiceMappings));
 departmentRouter.get('/:id', requirePermission('DEPARTMENT_VIEW'), asyncHandler(departmentController.get));

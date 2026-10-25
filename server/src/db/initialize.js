@@ -91,6 +91,7 @@ const receptionPermissions = [
   "BILL_PRINT",
   "PAYMENT_CREATE",
   "PAYMENT_VIEW",
+  "SERVICE_VIEW",
 ];
 const departmentPatientPermissions = ["PATIENT_VIEW", "PATIENT_SEARCH"];
 

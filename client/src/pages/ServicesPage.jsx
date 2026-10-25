@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   Droplets,
+  ChevronLeft,
+  ChevronRight,
   Edit3,
   FlaskConical,
   Hospital,
@@ -53,6 +55,7 @@ export function ServicesPage() {
   const [form, setForm] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [page,setPage]=useState(1);
   const [range, setRange] = useState("30d");
   const [analytics, setAnalytics] = useState({ total: 0, departments: [] });
   const load = useCallback(async () => {
@@ -63,8 +66,8 @@ export function ServicesPage() {
           ...filters,
           departmentId: filters.departmentId || undefined,
           search: filters.search || undefined,
-          page: 1,
-          limit: 100,
+          page,
+          limit: 20,
         }),
         departmentService.list({ status: "active", page: 1, limit: 100 }),
       ]);
@@ -75,7 +78,7 @@ export function ServicesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters,page]);
   useEffect(() => {
     void load();
   }, [load]);
@@ -145,10 +148,10 @@ export function ServicesPage() {
             Clinical configuration
           </p>
           <h2 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
-            Services
+            Service Management
           </h2>
           <p className="mt-1.5 text-sm text-slate-500">
-            Manage hospital services and pricing.
+            Manage hospital services, pricing, and department availability.
           </p>
         </div>
         <button className="hms-button-primary" onClick={() => setForm(blank)}>
@@ -309,6 +312,7 @@ export function ServicesPage() {
             </tbody>
           </table>
         </div>
+        <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-sm text-slate-500"><span>Page {data.pagination.page || 1} of {data.pagination.totalPages || 1}</span><div className="flex gap-2"><button className="rounded-lg border p-2 disabled:opacity-40" disabled={page<=1} onClick={()=>setPage((value)=>value-1)}><ChevronLeft size={16}/></button><button className="rounded-lg border p-2 disabled:opacity-40" disabled={page>=(data.pagination.totalPages||1)} onClick={()=>setPage((value)=>value+1)}><ChevronRight size={16}/></button></div></div>
       </section>
       {form && (
         <div className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-slate-950/40 p-4">

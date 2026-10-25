@@ -47,6 +47,13 @@ const permissions = [
   "REGISTRATION_FEE_COLLECT",
   "REGISTRATION_FEE_RECEIPT_VIEW",
   "REGISTRATION_FEE_RECEIPT_PRINT",
+  "SERVICE_VIEW",
+  "SERVICE_CREATE",
+  "SERVICE_UPDATE",
+  "SERVICE_DELETE",
+  "SERVICE_CHANGE_STATUS",
+  "SERVICE_MANAGE_PRICING",
+  "SERVICE_ASSIGN_DEPARTMENTS",
 ];
 const receptionPermissions = [
   "PATIENT_CREATE",
@@ -62,6 +69,7 @@ const receptionPermissions = [
   "BILL_PRINT",
   "PAYMENT_CREATE",
   "PAYMENT_VIEW",
+  "SERVICE_VIEW",
 ];
 const departmentPatientPermissions = ["PATIENT_VIEW", "PATIENT_SEARCH"];
 const developmentUsers = [

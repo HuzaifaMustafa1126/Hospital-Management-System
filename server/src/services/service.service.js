@@ -2,7 +2,7 @@ import { database } from "../db/database.js";
 import { AppError } from "../utils/app-error.js";
 
 const baseSelect = `SELECT s.id,s.name,s.code,s.description,s.price,s.workflow_key AS workflowKey,s.doctor_selectable AS doctorSelectable,s.is_active AS isActive,s.created_at AS createdAt,s.updated_at AS updatedAt,s.created_by AS createdBy FROM services s`;
-const present = (row, departments = []) => ({ ...row, price: Number(row.price), isActive: Boolean(row.isActive), doctorSelectable: Boolean(row.doctorSelectable), departments });
+const present = (row, departments = []) => ({ ...row, price: Number(row.price), isActive: Boolean(row.isActive), doctorSelectable: Boolean(row.doctorSelectable), departments, department: departments[0] || null });
 
 async function departmentsByService(serviceIds, connection = database) {
   if (!serviceIds.length) return new Map();
