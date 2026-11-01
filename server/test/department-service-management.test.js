@@ -35,6 +35,31 @@ test("empty department can be permanently deleted", async () => {
   await departmentService.remove(department.id); departmentIds.delete(department.id);
 });
 
+test("inactive doctor assignment is reported and blocks deletion", async () => {
+  const department = await createDepartment("InactiveDoctor");
+  const [[doctor]] = await database.execute("SELECT id FROM doctors ORDER BY id LIMIT 1");
+  assert.ok(doctor);
+  await database.execute("INSERT INTO doctor_departments(doctor_id,department_id,is_active) VALUES(?,?,FALSE)", [doctor.id, department.id]);
+  const impact = await departmentService.deletionImpact(department.id);
+  assert.equal(impact.dependencies.doctorAssignments, 1);
+  assert.equal(impact.dependencies.activeDoctorAssignments, 0);
+  assert.equal(impact.canDelete, false);
+  await assert.rejects(() => departmentService.remove(department.id), (error) => error.code === "DEPARTMENT_HAS_DEPENDENCIES");
+  await departmentService.removeAssignments(department.id);
+  await departmentService.remove(department.id); departmentIds.delete(department.id);
+});
+
+test("dependency added after preview is detected by transactional recheck", async () => {
+  const department = await createDepartment("Concurrent");
+  assert.equal((await departmentService.deletionImpact(department.id)).canDelete, true);
+  const service = await serviceService.create({ name: "Concurrent Mapping", code: `CONCURRENT_${Date.now()}`, price: 0, departmentIds: [department.id], isActive: true }, actorId);
+  serviceIds.add(service.id);
+  await assert.rejects(() => departmentService.remove(department.id), (error) => error.impact?.dependencies.serviceAssociations === 1);
+  await departmentService.removeServiceMappings(department.id);
+  await departmentService.remove(department.id); departmentIds.delete(department.id);
+  await serviceService.remove(service.id); serviceIds.delete(service.id);
+});
+
 test("service create, multi-department assignment, edit, fee snapshot policy, status, and delete", async () => {
   const first = await createDepartment("ServiceA"), second = await createDepartment("ServiceB");
   const code = `TEST_SERVICE_${String(Date.now()).slice(-8)}`;

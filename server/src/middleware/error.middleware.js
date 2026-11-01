@@ -35,8 +35,11 @@ export const errorHandler = (error, _req, res, _next) => {
   if (status === 500 && env.NODE_ENV !== "production") console.error(error);
   res.status(status).json({
     success: false,
+    ...(error.code && error instanceof AppError ? { code: error.code } : {}),
     message,
     errors,
+    ...(error.impact ? { canDelete: error.impact.canDelete, dependencies: error.impact.dependencies, blockingReasons: error.impact.blockingReasons, resolutions: error.impact.resolutions } : {}),
+    ...(error.constraint ? { constraint: error.constraint } : {}),
     ...(field ? { field } : {}),
   });
 };
