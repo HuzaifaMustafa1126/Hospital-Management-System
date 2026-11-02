@@ -5,5 +5,5 @@ export const doctorWorkflowService={
   claim:(id)=>api.post(`/doctor/visits/${id}/claim`),
   availableServices:(id)=>api.get(`/doctor/visits/${id}/services`),
   orders:(id)=>api.get(`/doctor/visits/${id}/short-stay-orders`),
-  addOrder:(id,data)=>api.post(`/doctor/visits/${id}/short-stay-orders`,data),
+  addOrder:(id,orders)=>api.post(`/doctor/visits/${id}/short-stay-orders`,{orders}),
 };

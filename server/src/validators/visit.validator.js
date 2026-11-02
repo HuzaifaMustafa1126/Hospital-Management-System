@@ -9,9 +9,15 @@ export const visitCreateSchema = z.object({
 });
 
 export const visitStatusSchema = z.object({ status: z.enum(["IN_CONSULTATION", "SHORT_STAY", "COMPLETED", "CANCELLED"]) });
-export const shortStayOrderSchema = z.object({
+export const shortStayOrderItemSchema = z.object({
   medicineName: z.string().trim().min(1).max(255),
-  dose: z.string().trim().min(1).max(100),
+  dose: z.string().trim().max(100).default(""),
   route: z.enum(["IV", "IM"]),
-  quantity: z.string().trim().min(1).max(100),
+  quantity: z.string().trim().max(100).default(""),
 });
+
+// Keep accepting the original single-order payload while supporting atomic bulk orders.
+export const shortStayOrderSchema = z.preprocess(
+  (payload) => payload && typeof payload === "object" && Array.isArray(payload.orders) ? payload : { orders: [payload] },
+  z.object({ orders: z.array(shortStayOrderItemSchema).min(1).max(50) }),
+).transform((payload) => payload.orders);

@@ -16,7 +16,7 @@ export const doctorWorkflowService = {
     if(!rows.length)throw new AppError(403,'You cannot access this patient visit.');
     const [services]=await database.execute(`SELECT ps.id,s.name AS serviceName,s.code AS serviceCode,ps.notes,ps.quantity,ps.status,ps.created_at AS createdAt FROM patient_services ps JOIN services s ON s.id=ps.service_id WHERE ps.visit_id=? ORDER BY ps.created_at DESC`,[visitId]);
     const [orders]=await database.execute(`SELECT o.id,'Short Stay' AS serviceName,o.medicine_name AS medicineName,o.dose,o.route,o.quantity,o.status,o.created_at AS createdAt FROM short_stay_orders o WHERE o.visit_id=? ORDER BY o.created_at DESC`,[visitId]);
-    return {...rows[0],isAssignedToCurrentDoctor:Number(rows[0].assignedDoctorId)===Number(doctorId),services:[...services,...orders]};
+    return {...rows[0],isAssignedToCurrentDoctor:Number(rows[0].assignedDoctorId)===Number(doctorId),services:[...services,...orders],shortStayOrders:orders};
   },
   async queue(userId, search = "") {
     const doctorId = await actorDoctor(database, userId);
@@ -36,7 +36,7 @@ export const doctorWorkflowService = {
       return { id: Number(visitId), doctorId, status: "IN_CONSULTATION" };
     } catch (error) { await connection.rollback(); throw error; } finally { connection.release(); }
   },
-  async addShortStay(visitId, data, userId) {
+  async addShortStay(visitId, orders, userId) {
     const connection = await database.getConnection();
     try {
       await connection.beginTransaction();
@@ -46,11 +46,16 @@ export const doctorWorkflowService = {
       if (!['IN_CONSULTATION','SHORT_STAY'].includes(visits[0].status)) throw new AppError(409, "Short-stay orders require an active consultation.");
       const [availability]=await connection.execute("SELECT s.id FROM services s JOIN department_services ds ON ds.service_id=s.id WHERE s.code='SHORT_STAY' AND s.workflow_key='SHORT_STAY' AND s.is_active=TRUE AND s.doctor_selectable=TRUE AND ds.department_id=?",[visits[0].departmentId]);
       if(!availability.length)throw new AppError(403,'Short Stay is not active or available for this visit department.');
-      const [result] = await connection.execute("INSERT INTO short_stay_orders (patient_id,visit_id,doctor_id,medicine_name,dose,route,quantity) VALUES (?,?,?,?,?,?,?)", [visits[0].patientId,visitId,doctorId,data.medicineName,data.dose,data.route,data.quantity]);
+      const created = [];
+      for (const order of orders) {
+        const [result] = await connection.execute("INSERT INTO short_stay_orders (patient_id,visit_id,doctor_id,medicine_name,dose,route,quantity) VALUES (?,?,?,?,?,?,?)", [visits[0].patientId,visitId,doctorId,order.medicineName,order.dose,order.route,order.quantity]);
+        const saved = { id: result.insertId, visitId:Number(visitId), doctorId, ...order, status:'ORDERED' };
+        created.push(saved);
+        await connection.execute("INSERT INTO audit_logs (id,user_id,action,entity,entity_id,new_data) VALUES (?,?,'SHORT_STAY_ORDER_CREATED','SHORT_STAY_ORDER',?,?)", [randomUUID(),userId,String(result.insertId),JSON.stringify(saved)]);
+      }
       await connection.execute("UPDATE patient_visits SET status='SHORT_STAY' WHERE id=?", [visitId]);
-      await connection.execute("INSERT INTO audit_logs (id,user_id,action,entity,entity_id,new_data) VALUES (?,?,'SHORT_STAY_ORDER_CREATED','SHORT_STAY_ORDER',?,?)", [randomUUID(),userId,String(result.insertId),JSON.stringify({ visitId:Number(visitId),doctorId,...data,status:'ORDERED' })]);
       await connection.commit();
-      return { id: result.insertId, visitId:Number(visitId), doctorId, ...data, status:'ORDERED' };
+      return created;
     } catch (error) { await connection.rollback(); throw error; } finally { connection.release(); }
   },
   async orders(visitId, userId) {
