@@ -12,6 +12,7 @@ import { DepartmentsPage } from "./pages/DepartmentsPage";
 import { DoctorsPage } from "./pages/DoctorsPage";
 import { LaboratoryPatientPage } from "./pages/LaboratoryPatientPage";
 import { LaboratoryPatientsPage } from "./pages/LaboratoryPatientsPage";
+import { LabManagementPage } from "./pages/LabManagementPage";
 import { LoginPage } from "./pages/LoginPage";
 import { PatientDetailPage } from "./pages/PatientDetailPage";
 import { PatientListPage } from "./pages/PatientListPage";
@@ -117,6 +118,11 @@ export function App() {
           {/* Laboratory Routes */}
           <Route element={<RoleProtectedRoute roles={["DOCTOR"]} />}>
             <Route path="/doctor/queue" element={<DoctorDashboardPage />} />
+          </Route>
+          <Route element={<PermissionProtectedRoute permissions={["SERVICE_VIEW"]} />}>
+            <Route element={<RoleProtectedRoute roles={["SUPER_ADMIN"]} />}>
+              <Route path="/lab-management" element={<LabManagementPage />} />
+            </Route>
           </Route>
           <Route
             element={

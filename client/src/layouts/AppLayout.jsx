@@ -38,6 +38,9 @@ export function AppLayout() {
   const surgery = user?.roles?.includes("SURGERY_ATTENDANT");
   const bloodBank = user?.roles?.includes("BLOOD_BANK_STAFF");
   const doctor = user?.roles?.includes("DOCTOR");
+  const canManageLab =
+    admin &&
+    hasPermission(user, "SERVICE_VIEW");
   useEffect(() => setMobileOpen(false), [location.pathname]);
   useEffect(() => {
     const close = (e) => e.key === "Escape" && setMobileOpen(false);
@@ -64,6 +67,9 @@ export function AppLayout() {
             ["Doctors", "/admin/doctors", Stethoscope],
             ["Departments", "/departments", Building2],
             ["Service Management", "/services", Tag],
+            ...(canManageLab
+              ? [["Lab Management", "/lab-management", FlaskConical]]
+              : []),
             ["Surgery", "/surgery", Scissors],
             ["Surgery Patients", "/surgery/patients", Search],
             ["Blood Bank", "/blood-bank", Droplets],
@@ -95,63 +101,72 @@ export function AppLayout() {
       ]
     : doctor
       ? [["MAIN", [["Doctor Queue", "/doctor/queue", Stethoscope]]]]
-    : lab
-      ? [
-          ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
-          [
-            "LABORATORY",
-            [["Laboratory Services", "/laboratory/patients", FlaskConical]],
-          ],
-        ]
-      : surgery
+      : lab
         ? [
             ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
             [
-              "SURGERY",
-              [
-                ["Surgery Dashboard", "/surgery", Scissors],
-                ["Surgery Patients", "/surgery/patients", Search],
-              ],
+              "LABORATORY",
+              [["Laboratory Services", "/laboratory/patients", FlaskConical]],
             ],
           ]
-        : bloodBank
+        : surgery
           ? [
               ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
               [
-                "BLOOD BANK",
+                "SURGERY",
                 [
-                  ["Blood Bank", "/blood-bank", Droplets],
-                  ["Search Patient", "/blood-bank/patients", Search],
+                  ["Surgery Dashboard", "/surgery", Scissors],
+                  ["Surgery Patients", "/surgery/patients", Search],
                 ],
               ],
             ]
-          : [
-              ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
-              [
-                "PATIENT MANAGEMENT",
+          : bloodBank
+            ? [
+                ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
                 [
-                  ["Patients", "/reception/patients", Users],
+                  "BLOOD BANK",
                   [
-                    "Register Patient",
-                    "/reception/patients/register",
-                    UserPlus,
+                    ["Blood Bank", "/blood-bank", Droplets],
+                    ["Search Patient", "/blood-bank/patients", Search],
                   ],
-                  ["Patient Search", "/reception/patients/search", Search],
-                  ["Billing", "/billing", WalletCards],
                 ],
-              ],
-            ];
+              ]
+            : [
+                ["MAIN", [["Dashboard", "/dashboard", LayoutDashboard]]],
+                [
+                  "PATIENT MANAGEMENT",
+                  [
+                    ["Patients", "/reception/patients", Users],
+                    [
+                      "Register Patient",
+                      "/reception/patients/register",
+                      UserPlus,
+                    ],
+                    ["Patient Search", "/reception/patients/search", Search],
+                    ["Billing", "/billing", WalletCards],
+                  ],
+                ],
+              ];
   if (!admin) {
-    const accessItems=[];
-    if(hasPermission(user,'USER_VIEW')) accessItems.push(['Users','/access/users',UserCog]);
-    if(hasPermission(user,'ROLE_VIEW')) accessItems.push(['Roles & Permissions','/access/roles',ShieldCheck]);
-    if(hasPermission(user,'AUDIT_LOG_VIEW')) accessItems.push(['Audit Logs','/audit-logs',ClipboardList]);
-    if(hasPermission(user,'SERVICE_VIEW')) accessItems.push(['Service Management','/services',Tag]);
-    if(accessItems.length) nav=[...nav,['ADMINISTRATION',accessItems]];
+    const accessItems = [];
+    if (hasPermission(user, "USER_VIEW"))
+      accessItems.push(["Users", "/access/users", UserCog]);
+    if (hasPermission(user, "ROLE_VIEW"))
+      accessItems.push(["Roles & Permissions", "/access/roles", ShieldCheck]);
+    if (hasPermission(user, "AUDIT_LOG_VIEW"))
+      accessItems.push(["Audit Logs", "/audit-logs", ClipboardList]);
+    if (hasPermission(user, "SERVICE_VIEW"))
+      accessItems.push(["Service Management", "/services", Tag]);
+    if (accessItems.length) nav = [...nav, ["ADMINISTRATION", accessItems]];
   }
   const title =
-    location.pathname.split("/").filter(Boolean).at(-1)?.replaceAll("-", " ") ||
-    "Dashboard";
+    location.pathname === "/lab-management"
+      ? "Lab Management"
+      : location.pathname
+          .split("/")
+          .filter(Boolean)
+          .at(-1)
+          ?.replaceAll("-", " ") || "Dashboard";
   const sidebar = `${collapsed ? "md:w-[76px]" : "md:w-64"} ${mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"} sidebar-scrollbar-hidden fixed inset-y-0 left-0 z-40 w-64 overflow-y-auto border-r border-slate-800 bg-slate-950 p-3 text-slate-300 transition-all duration-200`;
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#f5f7fa]">

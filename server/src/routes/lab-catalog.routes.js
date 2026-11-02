@@ -1,0 +1,148 @@
+import { Router } from "express";
+import { labCatalogController } from "../controllers/lab-catalog.controller.js";
+import {
+  authenticate,
+  requirePermission,
+  requireRole,
+} from "../middleware/auth.middleware.js";
+import { asyncHandler } from "../utils/async-handler.js";
+
+export const labCatalogRouter = Router();
+labCatalogRouter.use(authenticate, requirePermission("SERVICE_VIEW"));
+labCatalogRouter.get(
+  "/catalog/categories",
+  asyncHandler(labCatalogController.categories),
+);
+labCatalogRouter.post(
+  "/catalog/categories",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.createCategory),
+);
+labCatalogRouter.put(
+  "/catalog/categories/:id",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.updateCategory),
+);
+labCatalogRouter.patch(
+  "/catalog/categories/:id/status",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.categoryStatus),
+);
+labCatalogRouter.get(
+  "/catalog/tests",
+  asyncHandler(labCatalogController.tests),
+);
+labCatalogRouter.post(
+  "/catalog/tests",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.createTest),
+);
+labCatalogRouter.put(
+  "/catalog/tests/:id",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.updateTest),
+);
+labCatalogRouter.patch(
+  "/catalog/tests/:id/status",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.testStatus),
+);
+labCatalogRouter.post(
+  "/catalog/tests/:id/parameters",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.createParameter),
+);
+labCatalogRouter.put(
+  "/catalog/tests/:id/parameters/:parameterId",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.updateParameter),
+);
+labCatalogRouter.patch(
+  "/catalog/tests/:id/parameters/:parameterId/status",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.parameterStatus),
+);
+labCatalogRouter.get(
+  "/catalog/tests/:id",
+  asyncHandler(labCatalogController.test),
+);
+labCatalogRouter.get(
+  "/catalog/profiles",
+  asyncHandler(labCatalogController.profiles),
+);
+labCatalogRouter.post(
+  "/catalog/profiles",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.createProfile),
+);
+labCatalogRouter.put(
+  "/catalog/profiles/:id",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.updateProfile),
+);
+labCatalogRouter.patch(
+  "/catalog/profiles/:id/status",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.profileStatus),
+);
+labCatalogRouter.put(
+  "/catalog/profiles/:id/tests",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.profileTests),
+);
+labCatalogRouter.get(
+  "/catalog/profiles/:id",
+  asyncHandler(labCatalogController.profile),
+);
+labCatalogRouter.get(
+  "/catalog/combinations",
+  asyncHandler(labCatalogController.combinations),
+);
+labCatalogRouter.post(
+  "/catalog/combinations",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.createCombination),
+);
+labCatalogRouter.put(
+  "/catalog/combinations/:id",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.updateCombination),
+);
+labCatalogRouter.patch(
+  "/catalog/combinations/:id/status",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.combinationStatus),
+);
+labCatalogRouter.put(
+  "/catalog/combinations/:id/items",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.combinationItems),
+);
+labCatalogRouter.get(
+  "/catalog/prices",
+  asyncHandler(labCatalogController.prices),
+);
+labCatalogRouter.post(
+  "/catalog/prices/replace-effective",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.replaceEffectivePrice),
+);
+labCatalogRouter.post(
+  "/catalog/prices",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.createPrice),
+);
+labCatalogRouter.put(
+  "/catalog/prices/:id",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.updatePrice),
+);
+labCatalogRouter.patch(
+  "/catalog/prices/:id/status",
+  requireRole("SUPER_ADMIN"),
+  asyncHandler(labCatalogController.priceStatus),
+);
+labCatalogRouter.get(
+  "/catalog/effective-price",
+  asyncHandler(labCatalogController.effectivePrice),
+);
